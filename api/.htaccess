@@ -1,5 +1,5 @@
 # Los archivos internos de la API no se pueden abrir directamente
-<FilesMatch "^(_lib|config)\.php$">
+<FilesMatch "^(_.*|config)\.php$">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>

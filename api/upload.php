@@ -9,7 +9,7 @@ require_once __DIR__ . '/_lib.php';
 
 require_same_origin();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail(405, 'Método no permitido');
-require_auth();
+require_admin();
 
 $file = $_FILES['file'] ?? null;
 if (!$file || !is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {

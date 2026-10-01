@@ -4,9 +4,12 @@
  *   GET  content.php                 → todo el contenido
  *   GET  content.php?type=news       → filtrado por tipo (app, news, data, image)
  *   GET  content.php?id=XXXX         → un elemento
- *   POST content.php?action=create   → crear (requiere sesión)
+ *   POST content.php?action=create   → crear (requiere sesión de administrador)
  *   POST content.php?action=update&id=XXXX
  *   POST content.php?action=delete&id=XXXX
+ *
+ * Al crear o editar se puede enviar "notify": true para avisar a los
+ * jugadores registrados (campana de la web y, si lo pidieron, correo).
  */
 
 declare(strict_types=1);
@@ -17,11 +20,15 @@ $method = $_SERVER['REQUEST_METHOD'];
 $id = preg_replace('/[^\w-]/', '', (string) ($_GET['id'] ?? ''));
 
 if ($method === 'GET') {
+    $isAdmin = current_admin() !== null;
     $content = with_db(function (array &$db) {
         return $db['content'];
     });
+    $out = function (array $item) use ($isAdmin): array {
+        return $isAdmin ? $item : public_item($item);
+    };
     if ($id !== '') {
-        foreach ($content as $item) if ($item['id'] === $id) respond(200, $item);
+        foreach ($content as $item) if ($item['id'] === $id) respond(200, $out($item));
         fail(404, 'No encontrado');
     }
     $type = $_GET['type'] ?? '';
@@ -31,49 +38,88 @@ if ($method === 'GET') {
     usort($content, function ($a, $b) {
         return strcmp($b['createdAt'], $a['createdAt']);
     });
-    respond(200, $content);
+    respond(200, array_map($out, $content));
 }
 
 if ($method !== 'POST') fail(405, 'Método no permitido');
-require_auth();
+require_admin();
 $action = $_GET['action'] ?? '';
 
-if ($action === 'create') {
-    $in = read_json();
-    $item = sanitize_content($in);
-    $now = now_iso();
-    $item = array_merge(['id' => new_id()], $item, ['createdAt' => $now, 'updatedAt' => $now]);
-    with_db(function (array &$db) use ($item) {
-        $db['content'][] = $item;
-    }, true);
-    respond(201, $item);
+/** Texto de la notificación según el tipo de contenido. */
+function notification_for(array $item, bool $isNew): array
+{
+    $labels = [
+        'app' => $isNew ? 'Nuevo juego' : 'Juego actualizado',
+        'news' => $isNew ? 'Nueva noticia' : 'Noticia actualizada',
+        'data' => $isNew ? 'Nuevo dato' : 'Dato actualizado',
+        'image' => $isNew ? 'Nueva imagen en la galería' : 'Imagen actualizada',
+    ];
+    $prefix = $labels[$item['type']] ?? 'Novedad';
+    return [$prefix . ': ' . $item['title'], $item['summary'] ?? ''];
 }
 
-if ($action === 'update') {
+if ($action === 'create' || $action === 'update') {
     $in = read_json();
-    $updated = with_db(function (array &$db) use ($id, $in) {
-        foreach ($db['content'] as $k => $item) {
-            if ($item['id'] === $id) {
-                $old = $item['image'] ?? '';
-                $db['content'][$k] = array_merge(sanitize_content($in, $item), ['updatedAt' => now_iso()]);
-                if ($old !== $db['content'][$k]['image']) delete_upload_if_unused($db, $old);
-                return $db['content'][$k];
+    $notify = !empty($in['notify']);
+    $result = with_db(function (array &$db) use ($action, $id, $in, $notify) {
+        $now = now_iso();
+        if ($action === 'create') {
+            $item = array_merge(['id' => new_id()], sanitize_content($in), ['createdAt' => $now, 'updatedAt' => $now]);
+            $db['content'][] = $item;
+        } else {
+            $item = null;
+            foreach ($db['content'] as $k => $existing) {
+                if ($existing['id'] !== $id) continue;
+                $old = $existing['image'] ?? '';
+                $item = array_merge(sanitize_content($in, $existing), ['updatedAt' => $now]);
+                $db['content'][$k] = $item;
+                if ($old !== $item['image']) delete_upload_if_unused($db, $old);
+                break;
             }
+            if (!$item) return null;
         }
-        return null;
+        $mail = null;
+        if ($notify) {
+            [$title, $text] = notification_for($item, $action === 'create');
+            $mail = add_notification($db, $title, $text, in_array($item['type'], ['app', 'news', 'image'], true) ? $item['id'] : '', $item['type']);
+        }
+        return ['item' => $item, 'mail' => $mail];
     }, true);
-    if (!$updated) fail(404, 'No encontrado');
-    respond(200, $updated);
+    if (!$result) fail(404, 'No encontrado');
+
+    $emailed = 0;
+    if ($result['mail']) {
+        // Responde primero y envía los correos después (si el servidor lo permite)
+        $emailed = count($result['mail']['recipients']);
+    }
+    $payload = $result['item'] + ['_emailed' => $emailed];
+    if ($result['mail'] && function_exists('fastcgi_finish_request')) {
+        http_response_code($action === 'create' ? 201 : 200);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        fastcgi_finish_request();
+        send_notification_emails($result['mail']['recipients'], $result['mail']['notification']);
+        exit;
+    }
+    if ($result['mail']) send_notification_emails($result['mail']['recipients'], $result['mail']['notification']);
+    respond($action === 'create' ? 201 : 200, $payload);
 }
 
 if ($action === 'delete') {
     $ok = with_db(function (array &$db) use ($id) {
         foreach ($db['content'] as $k => $item) {
-            if ($item['id'] === $id) {
-                array_splice($db['content'], $k, 1);
-                delete_upload_if_unused($db, $item['image'] ?? '');
-                return true;
+            if ($item['id'] !== $id) continue;
+            array_splice($db['content'], $k, 1);
+            delete_upload_if_unused($db, $item['image'] ?? '');
+            // Limpia reseñas, votos y notificaciones de ese elemento
+            $db['comments'] = array_values(array_filter($db['comments'], function ($c) use ($id) {
+                return $c['item'] !== $id;
+            }));
+            foreach ($db['votes'] as $mid => $v) {
+                foreach (VOTE_CATEGORIES as $cat) if (($v[$cat] ?? '') === $id) unset($db['votes'][$mid][$cat]);
             }
+            foreach ($db['notifications'] as $nk => $n) if (($n['item'] ?? '') === $id) $db['notifications'][$nk]['item'] = '';
+            return true;
         }
         return false;
     }, true);

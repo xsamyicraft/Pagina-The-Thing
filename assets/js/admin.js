@@ -11,12 +11,12 @@
     app: {
       label: 'Juegos / apps', one: 'juego o aplicación', nuevo: 'Nuevo juego / app', icon: '▶',
       desc: 'Tus juegos y aplicaciones. El destacado aparece grande en la portada.',
-      fields: ['title', 'summary', 'body', 'image', 'platform', 'status', 'link', 'featured'],
+      fields: ['title', 'summary', 'body', 'image', 'platform', 'status', 'link', 'downloads', 'appKey', 'featured', 'notify'],
     },
     news: {
       label: 'Noticias', one: 'noticia', nuevo: 'Nueva noticia', icon: '✉',
       desc: 'Anuncios, diarios de desarrollo y novedades del estudio.',
-      fields: ['title', 'summary', 'body', 'image', 'link', 'featured'],
+      fields: ['title', 'summary', 'body', 'image', 'link', 'featured', 'notify'],
     },
     data: {
       label: 'Datos', one: 'dato', nuevo: 'Nuevo dato', icon: '#',
@@ -26,7 +26,7 @@
     image: {
       label: 'Galería', one: 'imagen', nuevo: 'Nueva imagen', icon: '▣',
       desc: 'Capturas, arte conceptual y fotos. Se muestran como polaroids en la portada.',
-      fields: ['image', 'title', 'summary'],
+      fields: ['image', 'title', 'summary', 'notify'],
     },
   };
 
@@ -54,13 +54,28 @@
       status = await api('api/auth.php?action=status');
     } catch (err) {
       $('#loading').innerHTML = `<div class="login-card" style="text-align:center"><h1 class="login-card__title pixel">ERROR DE CONEXIÓN</h1>
-        <p class="form__hint">No se pudo contactar con <code>api/auth.php</code>. Este panel necesita un servidor con PHP (por ejemplo, tu hosting de Hostinger).</p>
+        <p class="form__hint">No se pudo contactar con <code>api/auth.php</code>.</p>
+        <p class="form__hint" style="text-align:left">${connectionHint(err)}</p>
         <p class="form__error">${esc(err.message)}</p><a class="btn" href="index.html">◀ Volver</a></div>`;
       return;
     }
     $('#loading').hidden = true;
     if (status.user) return showDash(status.user);
     showLogin(status);
+  }
+
+  /** Explica la causa más probable de que la API no responda. */
+  function connectionHint(err) {
+    if (location.protocol === 'file:') {
+      return 'Abriste el archivo directamente desde tu computadora (file://). El panel solo funciona cuando la web está subida a un servidor con PHP: súbela a <b>public_html</b> en Hostinger y entra en <b>https://tudominio.com/admin.html</b>.';
+    }
+    if (err.status === 404) {
+      return 'La carpeta <b>api</b> no está en el servidor. Sube TODO el contenido del .zip a <b>public_html</b> (incluidas las carpetas api, assets, data y uploads).';
+    }
+    if (err.status >= 500) {
+      return 'PHP dio un error. Abre <b>api/check.php</b> en el navegador para ver qué falla (versión de PHP o permisos de las carpetas data y uploads, que deben ser 755).';
+    }
+    return 'El servidor respondió algo que no es la API (¿PHP desactivado o la web en otra carpeta?). Abre <b>api/check.php</b>: si ves texto con "php_version", PHP funciona; si ves el código fuente o un error, revisa la configuración de PHP en hPanel.';
   }
 
   function showLogin(status) {
@@ -147,7 +162,7 @@
     $('#userEmail').textContent = user;
     await loadContent();
     const fromHash = location.hash.slice(1);
-    setTab(TYPES[fromHash] || fromHash === 'account' ? fromHash : 'overview');
+    setTab(TYPES[fromHash] || ['account', 'stats', 'community'].includes(fromHash) ? fromHash : 'overview');
   }
 
   /** Si la sesión caducó, vuelve al login. */
@@ -187,6 +202,8 @@
   function render() {
     const panel = $('#panel');
     if (tab === 'overview') panel.innerHTML = renderOverview();
+    else if (tab === 'stats') return renderStats(panel);
+    else if (tab === 'community') return renderCommunity(panel);
     else if (tab === 'account') panel.innerHTML = renderAccount();
     else panel.innerHTML = renderList(tab);
     if (tab === 'account') bindAccount();
@@ -302,6 +319,14 @@
           ${['', ...STATUS].map((s) => `<option value="${esc(s)}"${s === (item.status || '') ? ' selected' : ''}>${s || '— Sin estado —'}</option>`).join('')}
           ${item.status && !STATUS.includes(item.status) ? `<option selected>${v('status')}</option>` : ''}
         </select></label>`;
+      case 'downloads':
+        return `<label class="field"><span>Descargas totales (privado)</span><input name="downloads" inputmode="numeric" maxlength="12" placeholder="Ej. 15000" value="${v('downloads')}">
+          <small>Cópialo de Google Play Console / App Store Connect. Solo lo ven los administradores.</small></label>`;
+      case 'appKey':
+        return `<label class="field"><span>App Key de LevelPlay (privado)</span><input name="appKey" maxlength="64" placeholder="Ej. 1a2b3c4d5" value="${v('appKey')}" spellcheck="false">
+          <small>Enlaza el juego con sus ganancias de anuncios. Está en LevelPlay → Apps (o en la pestaña Estadísticas).</small></label>`;
+      case 'notify':
+        return `<label class="check"><input type="checkbox" name="notify"${item.id ? '' : ' checked'}> ${item.id ? 'Avisar a los jugadores de este cambio' : 'Avisar a los jugadores registrados (campana y correo)'}</label>`;
       case 'featured':
         return `<label class="check"><input type="checkbox" name="featured"${item.featured ? ' checked' : ''}> Destacar en portada</label>`;
       case 'image':
@@ -331,7 +356,8 @@
     const fields = t.fields.map((f) => fieldHtml(type, f, item));
     // Agrupa algunos campos en dos columnas
     const html = fields.join('')
-      .replace(/(<label class="field"><span>Plataforma[\s\S]*?<\/label>)(<label class="field"><span>Estado[\s\S]*?<\/select><\/label>)/, '<div class="form__row">$1$2</div>');
+      .replace(/(<label class="field"><span>Plataforma[\s\S]*?<\/label>)(<label class="field"><span>Estado[\s\S]*?<\/select><\/label>)/, '<div class="form__row">$1$2</div>')
+      .replace(/(<label class="field"><span>Descargas[\s\S]*?<\/label>)(<label class="field"><span>App Key[\s\S]*?<\/label>)/, '<div class="form__row">$1$2</div>');
     editor.open(`
       <button class="icon-btn modal__close" type="button" data-close title="Cerrar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
@@ -424,6 +450,9 @@
         status: get('status'),
         value: get('value'),
         featured: Boolean(form.elements.featured && form.elements.featured.checked),
+        downloads: get('downloads'),
+        appKey: get('appKey'),
+        notify: Boolean(form.elements.notify && form.elements.notify.checked),
       };
       if (!payload.title) return showErr('El título es obligatorio');
       if (item.type === 'data' && !payload.value) return showErr('El valor es obligatorio');
@@ -435,11 +464,13 @@
         const saved = item.id
           ? await api(`api/content.php?action=update&id=${encodeURIComponent(item.id)}`, { json: payload })
           : await api('api/content.php?action=create', { json: payload });
+        const emailed = saved._emailed || 0;
+        delete saved._emailed;
         const idx = content.findIndex((i) => i.id === saved.id);
         if (idx > -1) content[idx] = saved;
         else content.unshift(saved);
         editor.close();
-        toast(item.id ? 'Cambios guardados' : '¡Publicado!');
+        toast((item.id ? 'Cambios guardados' : '¡Publicado!') + (payload.notify ? ` · aviso enviado${emailed ? ` (+${emailed} correo${emailed === 1 ? '' : 's'})` : ''}` : ''));
         render();
       } catch (ex) {
         if (!handleAuthError(ex)) showErr(ex.message);
@@ -525,6 +556,329 @@
         if (!handleAuthError(ex)) { err.textContent = `✖ ${ex.message}`; beep('error'); }
       }
     });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Estadísticas: descargas, ganancias (LevelPlay) y comunidad          */
+  /* ------------------------------------------------------------------ */
+
+  let statsDays = 30;
+  const fmtInt = (n) => (n == null ? '—' : Number(n).toLocaleString('es'));
+  const fmtUsd = (n) => (n == null ? '—' : `$${Number(n).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const panelLoading = (panel, title) => {
+    panel.innerHTML = `<div class="panel-head"><div><h1>${title}</h1><p class="blink">CARGANDO…</p></div></div>`;
+  };
+
+  async function renderStats(panel) {
+    panelLoading(panel, '$ ESTADÍSTICAS');
+    let d;
+    try {
+      d = await api(`api/stats.php?action=overview&days=${statsDays}`);
+    } catch (err) {
+      if (!handleAuthError(err)) panel.innerHTML = `<div class="empty">✖ ${esc(err.message)}</div>`;
+      return;
+    }
+    if (tab !== 'stats') return;
+    const lp = d.levelplay;
+    const t = lp.totals;
+    const c = d.community;
+
+    let lpStatus;
+    if (!lp.configured) lpStatus = '<div class="banner">LevelPlay no está conectado. Rellena tus claves abajo para ver las ganancias de los anuncios de Unity.</div>';
+    else if (lp.error) lpStatus = `<div class="banner banner--error">✖ ${esc(lp.error)}${lp.fetchedAt ? ` · Mostrando datos guardados del ${esc(formatDate(lp.fetchedAt))}` : ''}</div>`;
+    else lpStatus = `<div class="banner banner--ok">✓ LevelPlay conectado · ${esc(lp.range ? `${lp.range.start} → ${lp.range.end}` : '')} · actualizado ${esc(new Date(lp.fetchedAt).toLocaleString('es'))}</div>`;
+
+    const kpi = (label, value, note = '') => `<div class="kpi"><span>${label}</span><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`;
+
+    panel.innerHTML = `
+      <div class="panel-head">
+        <div><h1>$ ESTADÍSTICAS</h1><p>Descargas, ganancias por anuncios (Unity LevelPlay) y actividad de la comunidad.</p></div>
+        <div class="toolbar" style="margin:0">
+          <div class="seg" role="group" aria-label="Periodo">
+            ${[7, 30, 90].map((n) => `<button type="button" data-days="${n}" aria-pressed="${n === statsDays}">${n} días</button>`).join('')}
+          </div>
+          ${lp.configured ? '<button class="btn btn--sm" type="button" id="lpRefresh">↻ Actualizar</button>' : ''}
+        </div>
+      </div>
+      ${lpStatus}
+      <div class="kpis">
+        ${kpi('Ganancias', t ? fmtUsd(t.revenue) : '—', t ? `USD · últimos ${d.days} días` : 'Conecta LevelPlay')}
+        ${kpi('Impresiones', t ? fmtInt(t.impressions) : '—', t ? `eCPM ${fmtUsd(t.ecpm)}` : '')}
+        ${kpi('Usuarios activos', t && t.avgDau ? fmtInt(t.avgDau) : '—', 'Promedio diario (DAU)')}
+        ${kpi('Descargas', fmtInt(d.totalDownloads), 'Suma de los juegos (manual)')}
+        ${kpi('Jugadores web', fmtInt(c.members), `+${c.newMembers7d} esta semana`)}
+        ${kpi('Valoración', c.avgRating ? `${c.avgRating.toFixed(1)} ★` : '—', `${c.reviews} reseña${c.reviews === 1 ? '' : 's'}`)}
+      </div>
+
+      <div class="box chart-box">
+        <h2>GANANCIAS POR DÍA (USD)</h2>
+        ${revenueChart(lp.daily)}
+        ${lp.daily.length ? `<details class="chart-table"><summary>Ver como tabla</summary>
+          <div class="table-wrap"><table class="data"><thead><tr><th>Fecha</th><th>Ganancias</th><th>Impresiones</th><th>Usuarios activos</th></tr></thead>
+          <tbody>${lp.daily.map((r) => `<tr><td>${esc(r.date)}</td><td>${fmtUsd(r.revenue)}</td><td>${fmtInt(r.impressions)}</td><td>${fmtInt(r.activeUsers)}</td></tr>`).join('')}</tbody></table></div>
+        </details>` : ''}
+      </div>
+
+      <div class="box">
+        <h2>POR JUEGO</h2>
+        ${d.games.length ? `<div class="table-wrap"><table class="data">
+          <thead><tr><th>Juego</th><th>Descargas</th><th>Ganancias</th><th>Impresiones</th><th>DAU</th><th>Valoración</th><th>Votos mejor</th><th>Votos más jugado</th></tr></thead>
+          <tbody>${d.games.map((g) => `<tr>
+            <td><button class="linkish" type="button" data-edit-game="${esc(g.id)}">${esc(g.title)}</button>${g.appKey ? '' : '<br><small class="muted">Sin App Key de LevelPlay</small>'}</td>
+            <td>${fmtInt(g.downloads)}</td>
+            <td>${g.levelplay ? fmtUsd(g.levelplay.revenue) : '—'}</td>
+            <td>${g.levelplay ? fmtInt(g.levelplay.impressions) : '—'}</td>
+            <td>${g.levelplay ? fmtInt(g.levelplay.avgDau) : '—'}</td>
+            <td>${g.rating ? `${g.rating.toFixed(1)} ★ (${g.reviews})` : '—'}</td>
+            <td>${g.votesBest}</td><td>${g.votesPlayed}</td>
+          </tr>`).join('')}</tbody></table></div>` : '<div class="empty">AÚN NO HAY JUEGOS PUBLICADOS</div>'}
+        ${lp.unlinkedApps.length ? `<p class="form__hint" style="margin-top:16px">Apps de LevelPlay sin enlazar (copia su App Key en el juego correspondiente):</p>
+          <ul class="keys">${lp.unlinkedApps.map((a) => `<li><span>${esc(a.appName)} ${a.platform ? `(${esc(a.platform)})` : ''} · ${fmtUsd(a.revenue)}</span><code>${esc(a.appKey)}</code></li>`).join('')}</ul>` : ''}
+      </div>
+
+      <form class="box form" id="lpForm" novalidate>
+        <h2>CONEXIÓN CON UNITY LEVELPLAY</h2>
+        <p class="form__hint">En <b>LevelPlay → (tu perfil) → My Account → API</b> copia la <b>Secret Key</b> y el <b>Refresh Token</b>. Se guardan en el servidor y nunca se muestran en la web.</p>
+        <div class="form__row">
+          <label class="field"><span>SECRET KEY</span><input name="secretKey" type="password" autocomplete="off" spellcheck="false" placeholder="${lp.configured ? '•••••••• (guardada)' : ''}"></label>
+          <label class="field"><span>REFRESH TOKEN</span><input name="refreshToken" type="password" autocomplete="off" spellcheck="false" placeholder="${lp.configured ? '•••••••• (guardado)' : ''}"></label>
+        </div>
+        <p class="form__error" id="lpError" role="alert"></p>
+        <div class="form__actions">
+          ${lp.configured ? '<button class="btn btn--danger btn--sm" type="button" id="lpClear">Desconectar</button>' : ''}
+          <button class="btn btn--solid" type="submit">▶ Guardar y probar</button>
+        </div>
+        <p class="form__hint">Las <b>descargas</b> no las da LevelPlay: escríbelas en cada juego (Juegos / apps → Editar) copiándolas de Google Play Console o App Store Connect.</p>
+      </form>`;
+    bindStats(panel);
+  }
+
+  /** Gráfica de barras (una serie): ganancias por día, con tooltip al pasar el ratón. */
+  function revenueChart(daily) {
+    if (!daily.length) return '<div class="empty">SIN DATOS DE LEVELPLAY PARA ESTE PERIODO</div>';
+    const W = 820;
+    const H = 260;
+    const m = { t: 16, r: 8, b: 30, l: 56 };
+    const pw = W - m.l - m.r;
+    const ph = H - m.t - m.b;
+    const max = Math.max(...daily.map((r) => r.revenue), 0.01);
+    const step = niceStep(max / 4);
+    const top = Math.ceil(max / step) * step;
+    const y = (v) => m.t + ph - (v / top) * ph;
+    const band = pw / daily.length;
+    const bw = Math.max(2, Math.min(24, band - 2));
+    const grid = [];
+    for (let v = 0; v <= top + 1e-9; v += step) {
+      grid.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" class="grid${v === 0 ? ' base' : ''}"/>
+        <text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end" class="axis">$${v.toLocaleString('es', { maximumFractionDigits: 2 })}</text>`);
+    }
+    const every = Math.ceil(daily.length / 8);
+    const bars = daily.map((r, i) => {
+      const x = m.l + i * band + (band - bw) / 2;
+      const h = Math.max(0, y(0) - y(r.revenue));
+      const rad = Math.min(4, bw / 2, h);
+      const path = h > 0
+        ? `M${x},${y(0)} V${y(0) - h + rad} Q${x},${y(0) - h} ${x + rad},${y(0) - h} H${x + bw - rad} Q${x + bw},${y(0) - h} ${x + bw},${y(0) - h + rad} V${y(0)} Z`
+        : '';
+      const label = i % every === 0 ? `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle" class="axis">${r.date.slice(8, 10)}/${r.date.slice(5, 7)}</text>` : '';
+      return `<g class="bar" data-i="${i}" tabindex="0">
+        <rect class="hit" x="${m.l + i * band}" y="${m.t}" width="${band}" height="${ph}"/>
+        ${path ? `<path d="${path}"/>` : ''}${label}</g>`;
+    }).join('');
+    return `<div class="chart" data-daily='${esc(JSON.stringify(daily))}'>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ganancias diarias en dólares, ${daily.length} días">${grid.join('')}${bars}</svg>
+      <div class="chart__tip" hidden></div></div>`;
+  }
+
+  function niceStep(raw) {
+    const pow = 10 ** Math.floor(Math.log10(raw));
+    const n = raw / pow;
+    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * pow;
+  }
+
+  function bindStats(panel) {
+    panel.querySelectorAll('[data-days]').forEach((b) => b.addEventListener('click', () => {
+      statsDays = Number(b.dataset.days);
+      beep('select');
+      renderStats(panel);
+    }));
+    panel.querySelectorAll('[data-edit-game]').forEach((b) => b.addEventListener('click', () => {
+      openEditor(null, content.find((i) => i.id === b.dataset.editGame));
+    }));
+
+    // Tooltip de la gráfica
+    const chart = panel.querySelector('.chart');
+    if (chart) {
+      const daily = JSON.parse(chart.dataset.daily);
+      const tip = chart.querySelector('.chart__tip');
+      chart.querySelectorAll('.bar').forEach((g) => {
+        const show = () => {
+          const r = daily[Number(g.dataset.i)];
+          chart.querySelectorAll('.bar.on').forEach((o) => o.classList.remove('on'));
+          g.classList.add('on');
+          tip.innerHTML = `<b>${esc(formatDate(`${r.date}T12:00:00Z`))}</b><span>${fmtUsd(r.revenue)}</span><small>${fmtInt(r.impressions)} impresiones</small>`;
+          tip.hidden = false;
+          const box = chart.getBoundingClientRect();
+          const hit = g.querySelector('.hit').getBoundingClientRect();
+          const left = Math.min(Math.max(hit.left - box.left + hit.width / 2, 70), box.width - 70);
+          const bar = g.querySelector('path');
+          const barTop = bar ? bar.getBoundingClientRect().top : hit.bottom;
+          tip.style.left = `${left}px`;
+          tip.style.top = `${Math.max(barTop - box.top, 0)}px`;
+        };
+        g.addEventListener('pointerenter', show);
+        g.addEventListener('focus', show);
+      });
+      chart.addEventListener('pointerleave', () => {
+        tip.hidden = true;
+        chart.querySelectorAll('.bar.on').forEach((o) => o.classList.remove('on'));
+      });
+    }
+
+    const refresh = $('#lpRefresh');
+    if (refresh) refresh.addEventListener('click', async () => {
+      refresh.disabled = true;
+      try {
+        await api(`api/stats.php?action=levelplay_refresh&days=${statsDays}`, { method: 'POST' });
+        toast('Datos de LevelPlay actualizados');
+      } catch (err) {
+        if (!handleAuthError(err)) toast(err.message, 'error');
+      }
+      renderStats(panel);
+    });
+
+    const form = $('#lpForm');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = $('#lpError');
+      err.textContent = '';
+      const btn = form.querySelector('[type=submit]');
+      btn.disabled = true;
+      btn.textContent = 'PROBANDO…';
+      try {
+        await api('api/stats.php?action=levelplay_save', { json: { secretKey: form.secretKey.value.trim(), refreshToken: form.refreshToken.value.trim() } });
+        toast('¡LevelPlay conectado!');
+        renderStats(panel);
+      } catch (ex) {
+        if (!handleAuthError(ex)) { err.textContent = `✖ ${ex.message}`; beep('error'); }
+        btn.disabled = false;
+        btn.textContent = '▶ Guardar y probar';
+      }
+    });
+    const clear = $('#lpClear');
+    if (clear) clear.addEventListener('click', async () => {
+      if (!window.confirm('¿Desconectar LevelPlay y borrar las claves guardadas?')) return;
+      try {
+        await api('api/stats.php?action=levelplay_clear', { method: 'POST' });
+        toast('LevelPlay desconectado');
+        renderStats(panel);
+      } catch (ex) { if (!handleAuthError(ex)) toast(ex.message, 'error'); }
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Comunidad: jugadores, reseñas y avisos                              */
+  /* ------------------------------------------------------------------ */
+
+  async function renderCommunity(panel) {
+    panelLoading(panel, '@ COMUNIDAD');
+    let members;
+    let comments;
+    let notes;
+    try {
+      [members, comments, notes] = await Promise.all([
+        api('api/stats.php?action=members'),
+        api('api/stats.php?action=comments'),
+        api('api/stats.php?action=notifications'),
+      ]);
+    } catch (err) {
+      if (!handleAuthError(err)) panel.innerHTML = `<div class="empty">✖ ${esc(err.message)}</div>`;
+      return;
+    }
+    if (tab !== 'community') return;
+    const subscribed = members.filter((m) => m.emailNotify).length;
+    const linkable = content.filter((i) => ['app', 'news', 'image'].includes(i.type));
+    const starsTxt = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+
+    panel.innerHTML = `
+      <div class="panel-head"><div><h1>@ COMUNIDAD</h1><p>Jugadores registrados, sus reseñas y los avisos que les envías.</p></div></div>
+      <div class="kpis">
+        <div class="kpi"><span>Jugadores</span><b>${members.length}</b></div>
+        <div class="kpi"><span>Avisos por correo</span><b>${subscribed}</b><small>suscritos</small></div>
+        <div class="kpi"><span>Reseñas</span><b>${comments.filter((c) => c.rating).length}</b></div>
+        <div class="kpi"><span>Comentarios</span><b>${comments.filter((c) => !c.rating).length}</b></div>
+      </div>
+
+      <form class="box form" id="notifyForm" novalidate>
+        <h2>ENVIAR AVISO A LOS JUGADORES</h2>
+        <p class="form__hint">Aparece en la campana de todos los jugadores y llega por correo a los ${subscribed} suscritos.</p>
+        <label class="field"><span>TÍTULO *</span><input name="title" maxlength="140" required placeholder="¡Nueva actualización disponible!"></label>
+        <label class="field"><span>MENSAJE</span><input name="text" maxlength="400" placeholder="Detalles del aviso"></label>
+        <label class="field"><span>ENLAZAR CON (opcional)</span><select name="item"><option value="">— Nada —</option>
+          ${linkable.map((i) => `<option value="${esc(i.id)}">${esc(TYPES[i.type].label)}: ${esc(i.title)}</option>`).join('')}</select></label>
+        <p class="form__error" id="notifyError" role="alert"></p>
+        <div class="form__actions"><button class="btn btn--solid" type="submit">▶ Enviar aviso</button></div>
+      </form>
+
+      <div class="box">
+        <h2>RESEÑAS Y COMENTARIOS</h2>
+        <div class="list">${comments.map((c, i) => `
+          <div class="row row--text" style="--d:${Math.min(i, 12) * 0.03}s" data-comment="${esc(c.id)}">
+            <div style="min-width:0">
+              <p class="row__title">${esc(c.name)} ${c.rating ? `<span class="stars-txt">${starsTxt(c.rating)}</span>` : ''}</p>
+              <div class="row__meta"><span>${esc(formatDate(c.createdAt))}</span><span class="tag">${esc(c.itemTitle)}</span></div>
+              <p class="row__text">${esc(c.text)}</p>
+            </div>
+            <div class="row__actions"><button class="btn btn--sm btn--danger" type="button" data-del-comment="${esc(c.id)}">Borrar</button></div>
+          </div>`).join('') || '<div class="empty">TODAVÍA NO HAY RESEÑAS</div>'}</div>
+      </div>
+
+      <div class="box">
+        <h2>JUGADORES REGISTRADOS</h2>
+        ${members.length ? `<div class="table-wrap"><table class="data">
+          <thead><tr><th>Jugador</th><th>Correo</th><th>Desde</th><th>Avisos por correo</th><th>Mensajes</th><th></th></tr></thead>
+          <tbody>${members.map((m) => `<tr>
+            <td>${esc(m.name)}</td><td>${esc(m.email)}</td><td>${esc(formatDate(m.createdAt))}</td>
+            <td>${m.emailNotify ? '✓ Sí' : 'No'}</td><td>${m.comments}</td>
+            <td><button class="btn btn--sm btn--danger" type="button" data-del-member="${esc(m.id)}" data-name="${esc(m.name)}">Borrar</button></td>
+          </tr>`).join('')}</tbody></table></div>` : '<div class="empty">AÚN NO SE HA REGISTRADO NADIE</div>'}
+      </div>
+
+      <div class="box">
+        <h2>AVISOS ENVIADOS</h2>
+        <div class="list">${notes.slice(0, 15).map((n) => `
+          <div class="row row--text"><div style="min-width:0"><p class="row__title">${esc(n.title)}</p>
+          <div class="row__meta"><span>${esc(new Date(n.createdAt).toLocaleString('es'))}</span></div>${n.text ? `<p class="row__text">${esc(n.text)}</p>` : ''}</div></div>`).join('') || '<div class="empty">NINGÚN AVISO ENVIADO</div>'}</div>
+      </div>`;
+
+    $('#notifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const err = $('#notifyError');
+      err.textContent = '';
+      if (!form.elements.title.value.trim()) { err.textContent = '✖ Escribe un título'; return beep('error'); }
+      try {
+        const res = await api('api/stats.php?action=notify', { json: { title: form.elements.title.value, text: form.elements.text.value, item: form.elements.item.value } });
+        toast(`Aviso enviado${res.emailed ? ` (+${res.emailed} correos)` : ''}`);
+        renderCommunity(panel);
+      } catch (ex) { if (!handleAuthError(ex)) { err.textContent = `✖ ${ex.message}`; beep('error'); } }
+    });
+    panel.querySelectorAll('[data-del-comment]').forEach((b) => b.addEventListener('click', async () => {
+      if (!window.confirm('¿Borrar este mensaje?')) return;
+      try {
+        await api('api/community.php?action=delete_comment', { json: { id: b.dataset.delComment } });
+        toast('Mensaje borrado');
+        renderCommunity(panel);
+      } catch (ex) { if (!handleAuthError(ex)) toast(ex.message, 'error'); }
+    }));
+    panel.querySelectorAll('[data-del-member]').forEach((b) => b.addEventListener('click', async () => {
+      if (!window.confirm(`¿Borrar la cuenta de ${b.dataset.name}? También se borran sus reseñas y votos.`)) return;
+      try {
+        await api('api/stats.php?action=delete_member', { json: { id: b.dataset.delMember } });
+        toast('Jugador eliminado');
+        renderCommunity(panel);
+      } catch (ex) { if (!handleAuthError(ex)) toast(ex.message, 'error'); }
+    }));
   }
 
   boot();

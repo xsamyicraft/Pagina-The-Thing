@@ -143,14 +143,83 @@
       clock.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     }, 1000);
 
-    const art = $('#heroArt');
-    if (!reduceMotion && window.matchMedia('(pointer: fine)').matches) {
-      window.addEventListener('pointermove', (e) => {
-        const x = (e.clientX / window.innerWidth - 0.5) * 2;
-        const y = (e.clientY / window.innerHeight - 0.5) * 2;
-        art.style.transform = `perspective(900px) rotateY(${x * 8}deg) rotateX(${-y * 6}deg) translate(${x * 10}px, ${y * 8}px)`;
-      }, { passive: true });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Gato del logo: patitas que se mueven y pupilas que siguen al ratón  */
+  /* ------------------------------------------------------------------ */
+
+  function initCat() {
+    const cat = $('#cat');
+    if (!cat) return;
+    const eyes = [...cat.querySelectorAll('.cat__eye')];
+    const pupils = eyes.map((e) => e.querySelector('.cat__pupil'));
+    const paws = [...cat.querySelectorAll('.cat__paw')];
+    const rand = (a, b) => a + Math.random() * (b - a);
+    let pointer = null;
+    let lastMove = 0;
+    let frame = 0;
+
+    function aim(x, y) {
+      eyes.forEach((eye, i) => {
+        const r = eye.getBoundingClientRect();
+        const dx = x - (r.left + r.width / 2);
+        const dy = y - (r.top + r.height / 2);
+        const dist = Math.hypot(dx, dy) || 1;
+        const k = Math.min(1, dist / 160);           // cerca del ojo, la pupila se centra
+        pupils[i].style.setProperty('--px', `${((dx / dist) * r.width * 0.27 * k).toFixed(1)}px`);
+        pupils[i].style.setProperty('--py', `${((dy / dist) * r.height * 0.25 * k).toFixed(1)}px`);
+      });
     }
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (pointer) aim(pointer.x, pointer.y);
+      });
+    };
+    window.addEventListener('pointermove', (e) => {
+      pointer = { x: e.clientX, y: e.clientY };
+      lastMove = performance.now();
+      schedule();
+    }, { passive: true });
+    window.addEventListener('scroll', schedule, { passive: true });
+
+    // Sin ratón (móvil o quieto): la mirada vaga por la pantalla
+    setInterval(() => {
+      if (performance.now() - lastMove < 2500) return;
+      const r = cat.getBoundingClientRect();
+      pointer = { x: r.left + r.width * rand(-0.4, 1.4), y: r.top + r.height * rand(-0.2, 1.1) };
+      schedule();
+    }, 1600);
+
+    if (reduceMotion) return;
+
+    // "Bugs" aleatorios en las pupilas
+    (function bug() {
+      cat.style.setProperty('--bx', `${rand(-9, 9).toFixed(0)}px`);
+      cat.style.setProperty('--by', `${rand(-5, 5).toFixed(0)}px`);
+      cat.classList.add('bug');
+      setTimeout(() => cat.classList.remove('bug'), rand(70, 220));
+      setTimeout(bug, rand(1200, 4200));
+    })();
+
+    // Interferencia de color en las patitas de vez en cuando
+    (function pawGlitch() {
+      const paw = paws[Math.floor(Math.random() * paws.length)];
+      paw.classList.add('glitch-x');
+      setTimeout(() => paw.classList.remove('glitch-x'), rand(80, 200));
+      setTimeout(pawGlitch, rand(1500, 5000));
+    })();
+
+    // Al hacer clic, el gato "aporrea" con las patitas
+    $('#inicio').addEventListener('pointerdown', (e) => {
+      if (e.target.closest('a, button')) return;
+      cat.classList.add('tap');
+      beep('blip');
+      clearTimeout(cat._tap);
+      cat._tap = setTimeout(() => cat.classList.remove('tap'), 1000);
+    });
   }
 
   /* ------------------------------------------------------------------ */
@@ -162,6 +231,7 @@
       if (!en.isIntersecting) return;
       en.target.classList.add('in');
       en.target.querySelectorAll('[data-count]').forEach(countUp);
+      if (en.target.id === 'votes') en.target.classList.add('bars-on');
       revealObserver.unobserve(en.target);
     });
   }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
@@ -202,7 +272,16 @@
   /* ------------------------------------------------------------------ */
 
   let content = [];
+  let community = { ratings: {}, votes: { best: {}, played: {} }, comments: {}, mine: {} };
+  let me = null;          // jugador conectado
+  let online = true;      // false si no hay servidor PHP (vista previa local)
   const byType = (t) => content.filter((i) => i.type === t);
+
+  function starsHtml(value) {
+    const n = Math.round(Number(value) || 0);
+    return `<span class="stars" aria-hidden="true">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>`;
+  }
+  const ratingOf = (id) => community.ratings[id] || null;
   const media = (item, cls = '') => (item.image
     ? `<img src="${esc(item.image)}" alt="" loading="lazy" class="${cls}">`
     : '<div class="placeholder" aria-hidden="true"><img src="assets/img/logo-small.webp" alt=""></div>');
@@ -231,6 +310,7 @@
           </div>
           <h3 class="cart__title">${esc(g.title)}</h3>
           ${g.summary ? `<p class="cart__summary">${esc(g.summary)}</p>` : ''}
+          ${ratingOf(g.id) ? `<span class="cart__stars">${starsHtml(ratingOf(g.id).avg)} ${ratingOf(g.id).avg.toFixed(1)} · ${ratingOf(g.id).count} reseña${ratingOf(g.id).count === 1 ? '' : 's'}<span class="sr-only"> (valoración ${ratingOf(g.id).avg} de 5)</span></span>` : ''}
           <span class="cart__cta">Ver más</span>
         </div>
       </button>`).join('');
@@ -310,8 +390,67 @@
     $('#ticker').innerHTML = row + row; // duplicado para el bucle infinito
   }
 
+  /* Votaciones: mejor juego y más jugado */
+  const VOTE_CATS = [
+    { key: 'best', icon: '♛', title: 'Mejor juego', text: 'El que pondrías en tu salón de la fama.' },
+    { key: 'played', icon: '▶', title: 'Más jugado', text: 'Al que más horas le has dedicado.' },
+  ];
+  function renderVotes() {
+    const wrap = $('#votes');
+    const games = byType('app');
+    if (!games.length) {
+      wrap.innerHTML = '<div class="empty" style="grid-column:1/-1">CUANDO HAYA JUEGOS PODRÁS VOTAR AQUÍ</div>';
+      return;
+    }
+    wrap.innerHTML = VOTE_CATS.map((cat) => {
+      const counts = community.votes[cat.key] || {};
+      const total = games.reduce((n, g) => n + (counts[g.id] || 0), 0);
+      const rows = [...games].sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0) || a.title.localeCompare(b.title));
+      const top = counts[rows[0].id] || 0;
+      return `
+        <div class="vote-panel">
+          <h3><i aria-hidden="true">${cat.icon}</i> ${esc(cat.title.toUpperCase())}</h3>
+          <p>${esc(cat.text)} ${total} voto${total === 1 ? '' : 's'} en total.</p>
+          <div class="vote-list">
+            ${rows.map((g, i) => {
+              const n = counts[g.id] || 0;
+              const pct = total ? Math.round((n / total) * 100) : 0;
+              const mine = community.mine && community.mine[cat.key] === g.id;
+              return `
+                <div class="vote-row${n && n === top ? ' lead' : ''}">
+                  <span class="vote-row__rank">${String(i + 1).padStart(2, '0')}</span>
+                  <div>
+                    <div class="vote-row__name"><span>${esc(g.title)}</span><span>${n} · ${pct}%</span></div>
+                    <div class="vote-bar" role="img" aria-label="${n} votos, ${pct}%"><span style="--w:${pct}%"></span></div>
+                  </div>
+                  <button type="button" class="btn btn--sm vote-btn${mine ? ' voted' : ''}" data-vote="${cat.key}" data-item="${esc(g.id)}" aria-pressed="${mine}">${mine ? '✓ Tu voto' : 'Votar'}</button>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+    }).join('');
+    if (wrap.classList.contains('in')) {
+      wrap.classList.remove('bars-on');
+      void wrap.offsetWidth;
+      wrap.classList.add('bars-on');
+    }
+  }
+
+  async function vote(category, item) {
+    if (!me) return openAuth('register', 'Regístrate para votar', () => vote(category, item));
+    try {
+      community = { ...community, ...(await api('api/community.php?action=vote', { json: { category, item } })) };
+      beep('coin');
+      window.TT.toast('¡VOTO REGISTRADO!');
+      renderVotes();
+    } catch (err) {
+      handleMemberError(err);
+    }
+  }
+
   function renderAll() {
     renderGames();
+    renderVotes();
     renderNews();
     renderScores();
     renderGallery();
@@ -352,10 +491,139 @@
           ${item.link ? `<a class="btn btn--solid" href="${esc(item.link)}" target="_blank" rel="noopener noreferrer">${isApp ? '▶ Jugar / descargar' : 'Ver enlace'}</a>` : ''}
           <button class="btn" type="button" data-close>◀ Volver</button>
         </div>
-      </article>`, () => {
+      </article>
+      <section class="reviews" id="reviews" aria-live="polite"><p class="term" style="color:var(--muted)">CARGANDO TRANSMISIONES…</p></section>`, () => {
       if (location.hash.startsWith('#ver-')) history.replaceState(null, '', location.pathname + location.search);
     });
     if (pushHash) history.replaceState(null, '', `#ver-${id}`);
+    loadReviews(item);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Reseñas (juegos) y comentarios (noticias) en formato "código retro" */
+  /* ------------------------------------------------------------------ */
+
+  const reviewCode = (id) => (String(id).toUpperCase().replace(/[^0-9A-F]/g, '') + '000000000000').slice(0, 12).match(/.{4}/g).join('-');
+  let reviewsToken = 0;
+
+  async function loadReviews(item) {
+    const token = ++reviewsToken;
+    let list = [];
+    if (online) {
+      try { list = await api(`api/community.php?action=comments&item=${encodeURIComponent(item.id)}`); } catch { list = null; }
+    }
+    if (token !== reviewsToken) return;     // se abrió otro elemento mientras cargaba
+    const box = document.getElementById('reviews');
+    if (!box) return;
+    renderReviews(box, item, list);
+  }
+
+  function renderReviews(box, item, list) {
+    const isApp = item.type === 'app';
+    if (!online || list === null) {
+      box.innerHTML = '<p class="term" style="color:var(--muted)">LAS RESEÑAS NECESITAN EL SERVIDOR (PHP) PARA FUNCIONAR.</p>';
+      return;
+    }
+    const mine = list.find((c) => c.mine);
+    const rating = isApp && list.length ? list.reduce((n, c) => n + c.rating, 0) / list.length : 0;
+    const head = isApp
+      ? `<h3>RESEÑAS DE JUGADORES</h3>
+         <div class="rating-big">${list.length ? `<b>${rating.toFixed(1)}</b> ${starsHtml(rating)} <span>${list.length} reseña${list.length === 1 ? '' : 's'}</span>` : '<span>SIN RESEÑAS. ¡SÉ EL PRIMERO!</span>'}</div>`
+      : `<h3>COMENTARIOS (${list.length})</h3>`;
+
+    let form;
+    if (!me) {
+      form = `<div class="login-cta"><span>&gt; INICIA SESIÓN PARA ${isApp ? 'DEJAR TU RESEÑA' : 'COMENTAR'}</span>
+        <button class="btn btn--sm" type="button" data-auth="register">Nuevo jugador</button></div>`;
+    } else {
+      const current = isApp && mine ? mine.rating : 0;
+      form = `
+        <form class="review-form tt-form" id="reviewForm" novalidate>
+          <p class="review-form__title">&gt; ${isApp ? (mine ? 'EDITAR MI RESEÑA' : 'INTRODUCE TU CÓDIGO (RESEÑA)') : 'ESCRIBE UN COMENTARIO'}</p>
+          ${isApp ? `
+            <div class="star-pick" role="radiogroup" aria-label="Estrellas">
+              ${[1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="${n === current}" aria-label="${n} estrella${n > 1 ? 's' : ''}" data-star="${n}" class="${n <= current ? 'on' : ''}">★</button>`).join('')}
+            </div>
+            <input type="hidden" name="rating" value="${current}">` : ''}
+          <label class="tt-field"><span class="sr-only">Mensaje</span>
+            <textarea name="text" maxlength="1000" required placeholder="${isApp ? '¿Qué te pareció el juego?' : 'Escribe aquí…'}">${isApp && mine ? esc(mine.text) : ''}</textarea>
+          </label>
+          <p class="tt-error" role="alert"></p>
+          <div><button class="btn btn--solid btn--sm" type="submit">▶ ${isApp ? 'Enviar reseña' : 'Publicar'}</button></div>
+        </form>`;
+    }
+
+    const cards = list.map((c, i) => `
+      <article class="code-card${c.mine ? ' mine' : ''}" style="--d:${Math.min(i, 8) * 0.06}s">
+        <div class="code-card__top">
+          <span class="code-card__code">CÓDIGO ${reviewCode(c.id)}</span>
+          ${isApp ? `${starsHtml(c.rating)}<span class="sr-only">${c.rating} de 5 estrellas</span>` : ''}
+        </div>
+        <p class="code-card__who">&gt; PLAYER: ${esc(c.name.toUpperCase())} <span>· ${formatDate(c.createdAt, 'vhs')}${c.updatedAt !== c.createdAt ? ' · EDITADO' : ''}</span></p>
+        <p class="code-card__text">${esc(c.text)}</p>
+        ${c.canDelete ? `<button class="code-card__del" type="button" data-del-comment="${esc(c.id)}">[ BORRAR ]</button>` : ''}
+      </article>`).join('');
+
+    box.innerHTML = `<div class="reviews__head">${head}</div>${form}<div class="code-list">${cards}</div>`;
+    bindReviewForm(box, item);
+  }
+
+  function bindReviewForm(box, item) {
+    const form = box.querySelector('#reviewForm');
+    box.querySelectorAll('[data-del-comment]').forEach((b) => b.addEventListener('click', async () => {
+      if (!window.confirm('¿Borrar este mensaje?')) return;
+      try {
+        await api('api/community.php?action=delete_comment', { json: { id: b.dataset.delComment } });
+        window.TT.toast('MENSAJE BORRADO');
+        await refreshCommunity();
+        loadReviews(item);
+      } catch (err) { handleMemberError(err); }
+    }));
+    if (!form) return;
+    const stars = [...form.querySelectorAll('[data-star]')];
+    stars.forEach((b) => b.addEventListener('click', () => {
+      const n = Number(b.dataset.star);
+      form.rating.value = n;
+      stars.forEach((s) => {
+        const on = Number(s.dataset.star) <= n;
+        s.classList.toggle('on', on);
+        s.setAttribute('aria-checked', String(Number(s.dataset.star) === n));
+      });
+      b.classList.remove('pop');
+      void b.offsetWidth;
+      b.classList.add('pop');
+      beep('blip');
+    }));
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = form.querySelector('.tt-error');
+      const payload = { item: item.id, text: form.text.value.trim(), rating: form.rating ? Number(form.rating.value) : 0 };
+      if (item.type === 'app' && !payload.rating) { err.textContent = '✖ Elige de 1 a 5 estrellas'; return beep('error'); }
+      if (payload.text.length < 2) { err.textContent = '✖ Escribe tu mensaje'; return beep('error'); }
+      const btn = form.querySelector('[type=submit]');
+      btn.disabled = true;
+      try {
+        await api('api/community.php?action=comment', { json: payload });
+        beep('coin');
+        window.TT.toast(item.type === 'app' ? '¡RESEÑA GUARDADA!' : '¡COMENTARIO PUBLICADO!');
+        await refreshCommunity();
+        loadReviews(item);
+      } catch (ex) {
+        if (ex.status === 401) handleMemberError(ex);
+        else { err.textContent = `✖ ${ex.message}`; beep('error'); }
+        btn.disabled = false;
+      }
+    });
+  }
+
+  async function refreshCommunity() {
+    if (!online) return;
+    try {
+      community = await api('api/community.php?action=summary');
+      renderGames();
+      renderVotes();
+      observeReveals();
+    } catch { /* sin conexión */ }
   }
 
   let shotIndex = 0;
@@ -416,6 +684,266 @@
   });
 
   /* ------------------------------------------------------------------ */
+  /* Jugadores: registro, inicio de sesión, avisos                       */
+  /* ------------------------------------------------------------------ */
+
+  const authModal = createModal('modal--small');
+  const drawer = createModal('modal--drawer');
+  const accountModal = createModal('modal--small');
+  let pendingAction = null;
+  let lastUnread = 0;
+  const USER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
+  const closeBtn = `<button class="icon-btn modal__close" type="button" data-close title="Cerrar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      <span class="sr-only">Cerrar</span></button>`;
+
+  /** Si la sesión caducó, pide entrar de nuevo. Devuelve true si gestionó el error. */
+  function handleMemberError(err) {
+    if (err.status === 401) {
+      setMember(null);
+      openAuth('login', 'Tu sesión terminó. Vuelve a entrar.');
+      return true;
+    }
+    window.TT.toast(err.message, 'error');
+    return true;
+  }
+
+  function setMember(member, unread = 0) {
+    me = member;
+    const btn = $('#acctBtn');
+    const bell = $('#bellBtn');
+    if (me) {
+      btn.innerHTML = `<span class="initial" aria-hidden="true">${esc(me.name.charAt(0).toUpperCase())}</span><span class="acct-label">${esc(me.name)}</span>`;
+      btn.title = 'Mi cuenta';
+      bell.hidden = false;
+    } else {
+      btn.innerHTML = `${USER_ICON}<span class="acct-label">Entrar</span>`;
+      btn.title = 'Entrar o registrarse';
+      bell.hidden = true;
+    }
+    setUnread(unread);
+  }
+
+  function setUnread(n) {
+    const badge = $('#bellBadge');
+    badge.hidden = !n;
+    badge.textContent = n > 9 ? '9+' : String(n);
+    if (n > lastUnread) {
+      const bell = $('#bellBtn');
+      bell.classList.remove('ring');
+      void bell.offsetWidth;
+      bell.classList.add('ring');
+    }
+    lastUnread = n;
+  }
+
+  function openAuth(mode = 'login', reason = '', after = null) {
+    if (!online) return window.TT.toast('Las cuentas necesitan el servidor PHP (súbelo a Hostinger)', 'error');
+    pendingAction = after;
+    authModal.open(`${closeBtn}<div class="auth" id="authBox"></div>`);
+    renderAuth(mode, reason);
+  }
+
+  function renderAuth(mode, reason) {
+    const box = $('#authBox');
+    const isReg = mode === 'register';
+    box.innerHTML = `
+      <img class="auth__logo" src="assets/img/logo-small.webp" alt="" width="90" height="98">
+      <h2>${isReg ? 'NUEVO JUGADOR' : 'CONTINUAR PARTIDA'}</h2>
+      <p class="auth__sub">${esc(reason || (isReg ? 'Crea tu cuenta para votar, dejar reseñas y recibir avisos.' : 'Entra con tu correo y contraseña.'))}</p>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" aria-selected="${!isReg}" data-mode="login">Continuar</button>
+        <button type="button" role="tab" aria-selected="${isReg}" data-mode="register">Nuevo jugador</button>
+      </div>
+      <form class="tt-form" id="authForm" novalidate>
+        ${isReg ? '<label class="tt-field"><span>NOMBRE DE JUGADOR</span><input name="name" maxlength="24" autocomplete="nickname" required data-autofocus placeholder="3 a 24 letras o números"></label>' : ''}
+        <label class="tt-field"><span>CORREO</span><input name="email" type="email" autocomplete="email" required ${isReg ? '' : 'data-autofocus'}></label>
+        <label class="tt-field"><span>CONTRASEÑA${isReg ? ' (mín. 8)' : ''}</span><input name="password" type="password" autocomplete="${isReg ? 'new-password' : 'current-password'}" required minlength="8"></label>
+        ${isReg ? `
+          <label class="tt-check"><input type="checkbox" name="emailNotify"> Quiero recibir por correo los avisos de juegos nuevos y noticias (puedes darte de baja cuando quieras).</label>
+          <div class="hp" aria-hidden="true"><label>Web <input name="website" tabindex="-1" autocomplete="off"></label></div>` : ''}
+        <p class="tt-error" role="alert"></p>
+        <button class="btn btn--solid" type="submit" style="justify-content:center">▶ ${isReg ? 'Crear cuenta' : 'Entrar'}</button>
+      </form>`;
+    box.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { beep('blip'); renderAuth(b.dataset.mode, reason); }));
+    const form = $('#authForm');
+    setTimeout(() => { const f = form.querySelector('[data-autofocus]'); if (f) f.focus(); }, 60);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = form.querySelector('.tt-error');
+      err.textContent = '';
+      const btn = form.querySelector('[type=submit]');
+      const data = {
+        email: form.email.value.trim(),
+        password: form.password.value,
+      };
+      if (isReg) {
+        data.name = form.elements.name.value.trim();
+        data.emailNotify = form.emailNotify.checked;
+        data.website = form.website.value;
+        if (data.name.length < 3) { err.textContent = '✖ El nombre debe tener al menos 3 caracteres'; return beep('error'); }
+        if (data.password.length < 8) { err.textContent = '✖ La contraseña necesita 8 caracteres o más'; return beep('error'); }
+      }
+      btn.disabled = true;
+      try {
+        const res = await api(`api/members.php?action=${isReg ? 'register' : 'login'}`, { json: data });
+        setMember(res.member, res.unread);
+        authModal.close();
+        beep('coin');
+        window.TT.toast(isReg ? `¡BIENVENIDO, ${res.member.name.toUpperCase()}!` : `¡HOLA DE NUEVO, ${res.member.name.toUpperCase()}!`);
+        await refreshCommunity();
+        startPolling();
+        if (isReg) setTimeout(offerBrowserNotifications, 900);
+        const action = pendingAction;
+        pendingAction = null;
+        if (action) action();
+        else if (detail.isOpen()) {
+          const id = location.hash.startsWith('#ver-') ? location.hash.slice(5) : '';
+          const item = content.find((i) => i.id === id);
+          if (item) loadReviews(item);
+        }
+      } catch (ex) {
+        err.textContent = `✖ ${ex.message}`;
+        beep('error');
+        btn.disabled = false;
+        const card = authModal.panel;
+        card.animate([{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'none' }], { duration: 260 });
+      }
+    });
+  }
+
+  /* Avisos del navegador (Notification API): funcionan con la web abierta */
+  function browserNotifySupported() {
+    return 'Notification' in window && window.isSecureContext;
+  }
+  function offerBrowserNotifications() {
+    if (!browserNotifySupported() || Notification.permission !== 'default') return;
+    window.TT.toast('Activa los avisos del navegador desde tu cuenta para no perderte nada');
+  }
+
+  async function openDrawer() {
+    drawer.open(`${closeBtn}<div class="drawer"><h2>AVISOS</h2><p class="drawer__sub">Novedades, noticias y juegos nuevos.</p><div class="notif-list" id="notifList"><p class="term" style="color:var(--muted)">CARGANDO…</p></div></div>`);
+    try {
+      const res = await api('api/members.php?action=notifications');
+      const list = $('#notifList');
+      if (!list) return;
+      list.innerHTML = res.items.map((n, i) => {
+        const unread = n.createdAt > (res.lastSeen || '');
+        const kind = { news: 'Noticia', app: 'Juego', image: 'Galería', data: 'Dato', aviso: 'Aviso' }[n.kind] || 'Aviso';
+        const inner = `
+          <span class="notif__meta"><span class="kind">${unread ? '● ' : ''}${kind}</span><span>${formatDate(n.createdAt, 'vhs')}</span></span>
+          <span class="notif__title">${esc(n.title)}</span>
+          ${n.text ? `<span class="notif__text">${esc(n.text)}</span>` : ''}`;
+        return n.item && content.some((c) => c.id === n.item)
+          ? `<button type="button" class="notif${unread ? ' unread' : ''}" style="--d:${Math.min(i, 10) * 0.04}s" data-notif-item="${esc(n.item)}">${inner}</button>`
+          : `<div class="notif${unread ? ' unread' : ''}" style="--d:${Math.min(i, 10) * 0.04}s">${inner}</div>`;
+      }).join('') || '<p class="term" style="color:var(--muted)">SIN AVISOS TODAVÍA</p>';
+      list.querySelectorAll('[data-notif-item]').forEach((b) => b.addEventListener('click', () => {
+        drawer.close();
+        setTimeout(() => openItem(b.dataset.notifItem), 320);
+      }));
+      if (res.unread) {
+        await api('api/members.php?action=seen', { method: 'POST' });
+        setUnread(0);
+        rememberNotified(res.items[0] && res.items[0].createdAt);
+      }
+    } catch (err) {
+      drawer.close();
+      handleMemberError(err);
+    }
+  }
+
+  function openAccount() {
+    const notifState = !browserNotifySupported()
+      ? '<p class="drawer__sub">Tu navegador no admite avisos (o la web no usa HTTPS).</p>'
+      : Notification.permission === 'granted'
+        ? '<p class="drawer__sub" style="color:var(--acc)">✓ Avisos del navegador activados.</p>'
+        : Notification.permission === 'denied'
+          ? '<p class="drawer__sub">Bloqueaste los avisos: actívalos en la configuración del navegador.</p>'
+          : '<button class="btn btn--sm" type="button" id="enableNotif">🔔 Activar avisos del navegador</button>';
+    accountModal.open(`${closeBtn}
+      <div class="auth">
+        <h2>${esc(me.name.toUpperCase())}</h2>
+        <p class="auth__sub">${esc(me.email)} · jugador desde ${formatDate(me.createdAt)}</p>
+        <div class="tt-form">
+          <label class="tt-check"><input type="checkbox" id="prefEmail"${me.emailNotify ? ' checked' : ''}> Recibir avisos de novedades por correo</label>
+          ${notifState}
+          <button class="btn" type="button" id="openNotifs" style="justify-content:center">Ver mis avisos</button>
+          <button class="btn btn--danger" type="button" id="logoutMember" style="justify-content:center">Cerrar sesión</button>
+        </div>
+      </div>`);
+    $('#prefEmail').addEventListener('change', async (e) => {
+      try {
+        const res = await api('api/members.php?action=prefs', { json: { emailNotify: e.target.checked } });
+        me = res.member;
+        window.TT.toast(me.emailNotify ? 'Recibirás los avisos por correo' : 'Ya no recibirás correos');
+      } catch (err) { e.target.checked = !e.target.checked; handleMemberError(err); }
+    });
+    const enable = $('#enableNotif');
+    if (enable) enable.addEventListener('click', async () => {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        new Notification('THE THING', { body: '¡Avisos activados! Te avisaremos de las novedades.', icon: 'assets/img/apple-touch-icon.png' });
+        window.TT.toast('Avisos del navegador activados');
+      }
+      accountModal.close();
+    });
+    $('#openNotifs').addEventListener('click', () => { accountModal.close(); setTimeout(openDrawer, 320); });
+    $('#logoutMember').addEventListener('click', async () => {
+      try { await api('api/members.php?action=logout', { method: 'POST' }); } catch { /* ignore */ }
+      accountModal.close();
+      setMember(null);
+      stopPolling();
+      window.TT.toast('SESIÓN CERRADA. ¡HASTA PRONTO!');
+      refreshCommunity();
+    });
+  }
+
+  function rememberNotified(createdAt) {
+    if (createdAt) window.TT.store.set('tt-notified', createdAt);
+  }
+
+  /* Comprueba avisos nuevos cada minuto */
+  let pollTimer = null;
+  function startPolling() {
+    stopPolling();
+    pollTimer = setInterval(checkUnread, 60000);
+  }
+  function stopPolling() {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  async function checkUnread() {
+    if (!me || document.hidden && !(browserNotifySupported() && Notification.permission === 'granted')) return;
+    try {
+      const res = await api('api/members.php?action=me');
+      if (!res.member) { setMember(null); stopPolling(); return; }
+      const before = lastUnread;
+      setUnread(res.unread);
+      if (res.unread > before && browserNotifySupported() && Notification.permission === 'granted') {
+        const list = await api('api/members.php?action=notifications');
+        const already = window.TT.store.get('tt-notified', '');
+        list.items.filter((n) => n.createdAt > already && n.createdAt > (list.lastSeen || '')).slice(0, 3).forEach((n) => {
+          const note = new Notification(n.title, { body: n.text || 'Novedad en THE THING', icon: 'assets/img/apple-touch-icon.png', tag: n.id });
+          note.onclick = () => { window.focus(); if (n.item) openItem(n.item); note.close(); };
+        });
+        rememberNotified(list.items[0] && list.items[0].createdAt);
+      }
+    } catch { /* sin conexión: se reintenta en el próximo ciclo */ }
+  }
+
+  $('#acctBtn').addEventListener('click', () => (me ? openAccount() : openAuth('login')));
+  $('#bellBtn').addEventListener('click', openDrawer);
+  document.addEventListener('click', (e) => {
+    const join = e.target.closest('[data-join]');
+    if (join) return me ? openAccount() : openAuth('register');
+    const auth = e.target.closest('[data-auth]');
+    if (auth) return openAuth(auth.dataset.auth);
+    const v = e.target.closest('[data-vote]');
+    if (v) vote(v.dataset.vote, v.dataset.item);
+  });
+
+  /* ------------------------------------------------------------------ */
   /* ¿Continuar? (cuenta regresiva arcade)                               */
   /* ------------------------------------------------------------------ */
 
@@ -466,13 +994,29 @@
 
   initHeader();
   initHero();
+  initCat();
   initCountdown();
   initKonami();
   observeReveals();
 
-  const loaded = api('api/content.php')
-    .then((items) => { content = items; })
-    .catch(() => { content = DEMO; })
+  const loaded = Promise.all([
+    api('api/content.php'),
+    api('api/community.php?action=summary').catch(() => null),
+    api('api/members.php?action=me').catch(() => null),
+  ])
+    .then(([items, summary, session]) => {
+      content = items;
+      if (summary) community = summary;
+      if (session && session.member) {
+        setMember(session.member, session.unread);
+        startPolling();
+        checkUnread();
+      }
+    })
+    .catch(() => {
+      content = DEMO;
+      online = false;
+    })
     .then(renderAll);
 
   Promise.all([runBoot(), loaded]).then(() => {

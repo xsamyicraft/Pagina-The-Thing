@@ -1,6 +1,6 @@
 <?php
 /*
- * THE THING — autenticación
+ * THE THING — autenticación del administrador
  *   GET  auth.php?action=status    → ¿hay sesión? ¿falta configurar contraseña?
  *   POST auth.php?action=setup     → crea la contraseña la primera vez
  *   POST auth.php?action=login     → inicia sesión
@@ -15,11 +15,19 @@ require_same_origin();
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 
+function admin_session_start(): void
+{
+    start_session(true);
+    session_regenerate_id(true);
+    $_SESSION['admin'] = ADMIN_EMAIL;
+    $_SESSION['last'] = time();
+}
+
 if ($action === 'status' && $method === 'GET') {
     $needsSetup = with_db(function (array &$db) {
         return ($db['admin']['password'] ?? '') === '';
     });
-    respond(200, ['user' => current_user(), 'needsSetup' => $needsSetup, 'email' => ADMIN_EMAIL]);
+    respond(200, ['user' => current_admin(), 'needsSetup' => $needsSetup, 'email' => ADMIN_EMAIL]);
 }
 
 if ($method !== 'POST') fail(405, 'Método no permitido');
@@ -34,9 +42,7 @@ if ($action === 'setup') {
         return true;
     }, true);
     if (!$ok) fail(409, 'La contraseña ya fue configurada');
-    start_session();
-    session_regenerate_id(true);
-    $_SESSION['user'] = ADMIN_EMAIL;
+    admin_session_start();
     respond(200, ['user' => ADMIN_EMAIL]);
 }
 
@@ -44,51 +50,34 @@ if ($action === 'login') {
     $in = read_json();
     $email = strtolower(clean_str($in['email'] ?? '', 200));
     $password = (string) ($in['password'] ?? '');
-    $ip = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $key = 'admin:' . ip_key();
 
-    $result = with_db(function (array &$db) use ($email, $password, $ip) {
-        $now = time();
-        foreach ($db['attempts'] ?? [] as $k => $a) {
-            if (($a['until'] ?? 0) < $now && ($a['last'] ?? 0) < $now - 3600) unset($db['attempts'][$k]);
-        }
-        $a = $db['attempts'][$ip] ?? ['count' => 0, 'until' => 0, 'last' => 0];
-        if ($a['until'] > $now) return 'locked';
-
+    $result = with_db(function (array &$db) use ($email, $password, $key) {
+        if (too_many($db, $key, 5, 300)) return 'locked';
         $valid = $email === strtolower($db['admin']['email'] ?? '')
             && ($db['admin']['password'] ?? '') !== ''
             && password_verify($password, $db['admin']['password']);
         if (!$valid) {
-            $a['count']++;
-            $a['last'] = $now;
-            if ($a['count'] >= 5) {
-                $a = ['count' => 0, 'until' => $now + 300, 'last' => $now];
-            }
-            $db['attempts'][$ip] = $a;
+            record_hit($db, $key);
             return 'bad';
         }
-        unset($db['attempts'][$ip]);
+        clear_rate_limit($db, $key);
         return 'ok';
     }, true);
 
     if ($result === 'locked') fail(429, 'Demasiados intentos. Espera 5 minutos.');
     if ($result === 'bad') fail(401, 'Credenciales incorrectas');
-    start_session();
-    session_regenerate_id(true);
-    $_SESSION['user'] = ADMIN_EMAIL;
+    admin_session_start();
     respond(200, ['user' => ADMIN_EMAIL]);
 }
 
 if ($action === 'logout') {
-    start_session();
-    $_SESSION = [];
-    $p = session_get_cookie_params();
-    setcookie(session_name(), '', ['expires' => time() - 3600, 'path' => $p['path'], 'secure' => $p['secure'], 'httponly' => true, 'samesite' => 'Strict']);
-    session_destroy();
+    if (start_session()) unset($_SESSION['admin']);
     respond(200, ['ok' => true]);
 }
 
 if ($action === 'password') {
-    require_auth();
+    require_admin();
     $in = read_json();
     $current = (string) ($in['current'] ?? '');
     $next = (string) ($in['next'] ?? '');

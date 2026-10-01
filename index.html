@@ -36,26 +36,45 @@
 
   <header class="site-header" id="header">
     <nav class="nav container" aria-label="Principal">
-      <a class="brand" href="#inicio">
+      <a class="brand" href="#inicio" aria-label="THE THING, volver al inicio">
         <img src="assets/img/logo-small.webp" alt="" width="40" height="44">
         <span>THE THING<small>GAME STUDIO</small></span>
       </a>
       <ul class="menu" id="menu">
-        <li><a href="#inicio">INICIO</a></li>
         <li><a href="#juegos">JUEGOS</a></li>
+        <li><a href="#votos">VOTOS</a></li>
         <li><a href="#noticias">NOTICIAS</a></li>
         <li><a href="#datos">DATOS</a></li>
         <li><a href="#galeria">GALERÍA</a></li>
         <li><a href="#estudio">ESTUDIO</a></li>
+        <li class="menu__extras">
+          <button class="icon-btn" type="button" data-fx-toggle aria-pressed="true" title="Efecto CRT">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="14"/><path d="M8 22h8M12 18v4"/></svg>
+            <span class="sr-only">Efecto CRT</span>
+          </button>
+          <button class="icon-btn" type="button" data-sound-toggle aria-pressed="false" title="Sonido">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
+            <span class="sr-only">Sonido</span>
+          </button>
+        </li>
       </ul>
       <div class="nav__tools">
-        <button class="icon-btn" type="button" data-fx-toggle aria-pressed="true" title="Efecto CRT">
+        <button class="icon-btn fx-tool" type="button" data-fx-toggle aria-pressed="true" title="Efecto CRT">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="14"/><path d="M8 22h8M12 18v4"/></svg>
           <span class="sr-only">Activar o desactivar efecto CRT</span>
         </button>
-        <button class="icon-btn" type="button" data-sound-toggle aria-pressed="false" title="Sonido">
+        <button class="icon-btn fx-tool" type="button" data-sound-toggle aria-pressed="false" title="Sonido">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
           <span class="sr-only">Activar o desactivar sonido</span>
+        </button>
+        <button class="icon-btn bell" type="button" id="bellBtn" title="Avisos" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="sr-only">Avisos</span>
+          <span class="bell__badge" id="bellBadge" hidden>0</span>
+        </button>
+        <button class="btn btn--sm acct-btn" type="button" id="acctBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span class="acct-label">Entrar</span>
         </button>
         <button class="icon-btn nav__toggle" type="button" id="menuToggle" aria-controls="menu" aria-expanded="false" title="Menú">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
@@ -87,11 +106,17 @@
             <a class="btn" href="#noticias">Últimas noticias</a>
           </div>
         </div>
-        <div class="hero__art-wrap" id="heroArt">
+        <div class="hero__art-wrap">
           <div class="hero__art">
-            <img src="assets/img/logo.webp" alt="Logo de THE THING: un gato glitch con ojos que gotean" width="680" height="740">
-            <img class="ghost-r" src="assets/img/logo.webp" alt="" aria-hidden="true">
-            <img class="ghost-c" src="assets/img/logo.webp" alt="" aria-hidden="true">
+            <div class="cat" id="cat" role="img" aria-label="Logo de THE THING: un gato glitch con ojos que gotean">
+              <img class="cat__ghost cat__ghost--r" src="assets/img/logo-head.webp" alt="">
+              <img class="cat__ghost cat__ghost--c" src="assets/img/logo-head.webp" alt="">
+              <img class="cat__head" src="assets/img/logo-head.webp" alt="" width="680" height="740">
+              <span class="cat__eye cat__eye--l"><i class="cat__pupil"></i></span>
+              <span class="cat__eye cat__eye--r"><i class="cat__pupil"></i></span>
+              <img class="cat__paw cat__paw--l" src="assets/img/paw-left.webp" alt="">
+              <img class="cat__paw cat__paw--r" src="assets/img/paw-right.webp" alt="">
+            </div>
           </div>
         </div>
       </div>
@@ -119,8 +144,22 @@
       </div>
     </section>
 
+    <!-- VOTACIONES -->
+    <section class="section section--alt" id="votos">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Versus mode</p>
+            <h2 class="section-title">Votaciones</h2>
+            <p class="section-sub">¿Cuál es el mejor juego del estudio? ¿Y el que más horas te ha robado? Regístrate y vota: puedes cambiar tu voto cuando quieras.</p>
+          </div>
+        </div>
+        <div class="vote-grid reveal" id="votes"></div>
+      </div>
+    </section>
+
     <!-- NOTICIAS -->
-    <section class="section section--alt" id="noticias">
+    <section class="section" id="noticias">
       <div class="container">
         <div class="section-head reveal">
           <div>
@@ -135,7 +174,7 @@
     </section>
 
     <!-- DATOS -->
-    <section class="section" id="datos">
+    <section class="section section--alt" id="datos">
       <div class="container">
         <div class="section-head reveal">
           <div>
@@ -149,7 +188,7 @@
     </section>
 
     <!-- GALERÍA -->
-    <section class="section section--alt" id="galeria">
+    <section class="section" id="galeria">
       <div class="container">
         <div class="section-head reveal">
           <div>
@@ -163,7 +202,7 @@
     </section>
 
     <!-- ESTUDIO -->
-    <section class="section" id="estudio">
+    <section class="section section--alt" id="estudio">
       <div class="container about">
         <div class="reveal">
           <p class="eyebrow">Ficha de personaje</p>
@@ -188,13 +227,16 @@
     </section>
 
     <!-- CONTINUAR / CONTACTO -->
-    <section class="section section--alt continue" id="contacto">
+    <section class="section continue" id="contacto">
       <div class="container reveal">
         <p class="eyebrow">Game over?</p>
         <h2 class="section-title">¿Continuar?</h2>
         <div class="continue__count" id="countdown" aria-hidden="true">9</div>
-        <p>¿Prensa, colaboraciones o simplemente quieres saludar? Inserta una moneda y escríbenos.</p>
-        <a class="btn btn--solid" href="mailto:contacto@thethinggame.com">✉ Insertar moneda</a>
+        <p>Crea tu cuenta de jugador para votar, dejar reseñas y recibir avisos de juegos nuevos y noticias. ¿Prensa o colaboraciones? Escríbenos.</p>
+        <div class="join">
+          <button class="btn btn--solid" type="button" data-join>▶ Nuevo jugador</button>
+          <a class="btn" href="mailto:contacto@thethinggame.com">✉ Insertar moneda</a>
+        </div>
       </div>
     </section>
   </main>

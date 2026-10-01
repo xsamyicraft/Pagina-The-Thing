@@ -184,7 +184,7 @@
       beep('back');
       const done = () => {
         modal.classList.remove('closing');
-        document.documentElement.style.overflow = '';
+        if (!document.querySelector('.modal.open')) document.documentElement.style.overflow = '';
       };
       if (reduceMotion) done();
       else setTimeout(done, 400);
@@ -194,6 +194,8 @@
     modal.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) close(); });
     document.addEventListener('keydown', (e) => {
       if (!modal.classList.contains('open')) return;
+      const opened = document.querySelectorAll('.modal.open');
+      if (opened[opened.length - 1] !== modal) return;   // solo actúa la ventana de arriba
       if (e.key === 'Escape') close();
       if (e.key === 'Tab') {     // mantiene el foco dentro del modal
         const f = panel.querySelectorAll('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])');
