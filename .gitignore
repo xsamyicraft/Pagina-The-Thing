@@ -1,0 +1,6 @@
+# Datos generados en el servidor (no se suben al repositorio)
+data/db.php
+uploads/*
+!uploads/.htaccess
+!uploads/index.php
+.DS_Store

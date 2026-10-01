@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Panel — THE THING</title>
+  <meta name="theme-color" content="#0a0a0b">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body class="fx-on admin">
+  <div class="crt-noise" aria-hidden="true"></div>
+  <div class="crt-overlay" aria-hidden="true"></div>
+
+  <!-- Cargando -->
+  <div class="screen screen--loading" id="loading">
+    <p class="pixel blink">CARGANDO…</p>
+  </div>
+
+  <!-- Inicio de sesión / configuración inicial -->
+  <main class="screen screen--login" id="loginScreen" hidden>
+    <div class="login-card" id="loginCard">
+      <img class="login-card__logo" src="assets/img/logo-small.webp" alt="THE THING" width="120" height="130">
+      <p class="eyebrow" id="loginEyebrow">Área restringida</p>
+      <h1 class="login-card__title pixel" id="loginTitle">ACCESO STAFF</h1>
+
+      <form id="loginForm" class="form" novalidate>
+        <label class="field">
+          <span>CORREO</span>
+          <input type="email" name="email" id="loginEmail" autocomplete="username" required spellcheck="false">
+        </label>
+        <label class="field">
+          <span>CONTRASEÑA</span>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <p class="form__error" id="loginError" role="alert"></p>
+        <button class="btn btn--solid btn--block" type="submit">▶ Iniciar sesión</button>
+      </form>
+
+      <form id="setupForm" class="form" novalidate hidden>
+        <p class="form__hint">Primera vez aquí. Crea la contraseña para <strong id="setupEmail"></strong>. Solo se puede hacer una vez.</p>
+        <label class="field">
+          <span>NUEVA CONTRASEÑA (mín. 8)</span>
+          <input type="password" name="password" autocomplete="new-password" minlength="8" required>
+        </label>
+        <label class="field">
+          <span>REPETIR CONTRASEÑA</span>
+          <input type="password" name="confirm" autocomplete="new-password" minlength="8" required>
+        </label>
+        <p class="form__error" id="setupError" role="alert"></p>
+        <button class="btn btn--solid btn--block" type="submit">▶ Crear y entrar</button>
+      </form>
+
+      <a class="login-card__back" href="index.html" data-transition>◀ Volver al sitio</a>
+    </div>
+  </main>
+
+  <!-- Panel -->
+  <div class="screen screen--dash" id="dashScreen" hidden>
+    <header class="topbar">
+      <a class="brand" href="index.html" data-transition>
+        <img src="assets/img/logo-small.webp" alt="" width="40" height="44">
+        <span>THE THING<small>PANEL DE CONTROL</small></span>
+      </a>
+      <div class="topbar__tools">
+        <span class="topbar__user" id="userEmail"></span>
+        <button class="icon-btn" type="button" data-fx-toggle aria-pressed="true" title="Efecto CRT">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="14"/><path d="M8 22h8M12 18v4"/></svg>
+          <span class="sr-only">Efecto CRT</span>
+        </button>
+        <button class="icon-btn" type="button" data-sound-toggle aria-pressed="false" title="Sonido">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
+          <span class="sr-only">Sonido</span>
+        </button>
+        <button class="btn btn--sm" type="button" id="logoutBtn">Salir</button>
+      </div>
+    </header>
+
+    <div class="dash">
+      <nav class="admin-nav" aria-label="Secciones del panel">
+        <button type="button" data-tab="overview" class="active"><i>■</i> Resumen</button>
+        <button type="button" data-tab="app"><i>▶</i> Juegos / apps</button>
+        <button type="button" data-tab="news"><i>✉</i> Noticias</button>
+        <button type="button" data-tab="data"><i>#</i> Datos</button>
+        <button type="button" data-tab="image"><i>▣</i> Galería</button>
+        <button type="button" data-tab="account"><i>☺</i> Cuenta</button>
+        <a href="index.html" target="_blank" rel="noopener"><i>↗</i> Ver sitio</a>
+      </nav>
+
+      <section class="dash__main" id="panel" aria-live="polite"></section>
+    </div>
+  </div>
+
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/admin.js"></script>
+</body>
+</html>

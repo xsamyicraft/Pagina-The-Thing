@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>THE THING — Estudio de videojuegos</title>
+  <meta name="description" content="THE THING es un estudio independiente de videojuegos. Juegos raros, memorables y con alma de cartucho viejo.">
+  <meta name="theme-color" content="#0a0a0b">
+  <meta property="og:title" content="THE THING — Estudio de videojuegos">
+  <meta property="og:description" content="Juegos raros, memorables y con alma de cartucho viejo.">
+  <meta property="og:image" content="assets/img/logo.webp">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="fx-on">
+  <a class="sr-only" href="#juegos">Saltar al contenido</a>
+
+  <!-- Pantalla de arranque estilo BIOS -->
+  <div class="boot" id="boot" aria-hidden="true">
+    <div class="boot__bios" id="bootBios"></div>
+    <div class="boot__center">
+      <img class="boot__logo" id="bootLogo" src="assets/img/logo.webp" alt="">
+      <div class="boot__bar" id="bootBar"><span></span></div>
+      <div class="boot__press" id="bootPress">PRESIONA START</div>
+    </div>
+    <button class="boot__skip" id="bootSkip" type="button">SALTAR &gt;&gt;</button>
+  </div>
+
+  <div class="crt-noise" aria-hidden="true"></div>
+  <div class="crt-roll" aria-hidden="true"></div>
+  <div class="crt-overlay" aria-hidden="true"></div>
+
+  <header class="site-header" id="header">
+    <nav class="nav container" aria-label="Principal">
+      <a class="brand" href="#inicio">
+        <img src="assets/img/logo-small.webp" alt="" width="40" height="44">
+        <span>THE THING<small>GAME STUDIO</small></span>
+      </a>
+      <ul class="menu" id="menu">
+        <li><a href="#inicio">INICIO</a></li>
+        <li><a href="#juegos">JUEGOS</a></li>
+        <li><a href="#noticias">NOTICIAS</a></li>
+        <li><a href="#datos">DATOS</a></li>
+        <li><a href="#galeria">GALERÍA</a></li>
+        <li><a href="#estudio">ESTUDIO</a></li>
+      </ul>
+      <div class="nav__tools">
+        <button class="icon-btn" type="button" data-fx-toggle aria-pressed="true" title="Efecto CRT">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="14"/><path d="M8 22h8M12 18v4"/></svg>
+          <span class="sr-only">Activar o desactivar efecto CRT</span>
+        </button>
+        <button class="icon-btn" type="button" data-sound-toggle aria-pressed="false" title="Sonido">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
+          <span class="sr-only">Activar o desactivar sonido</span>
+        </button>
+        <button class="icon-btn nav__toggle" type="button" id="menuToggle" aria-controls="menu" aria-expanded="false" title="Menú">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          <span class="sr-only">Abrir menú</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="inicio">
+      <div class="hero__glow" aria-hidden="true"></div>
+      <div class="hero__grid" aria-hidden="true"></div>
+      <div class="hero__hud" aria-hidden="true">
+        <span class="rec">REC</span>
+        <span>CH-01 &nbsp; <span id="hudClock">00:00:00</span></span>
+      </div>
+      <div class="container hero__inner">
+        <div>
+          <p class="eyebrow">Estudio independiente de videojuegos</p>
+          <h1 class="hero__title">
+            <small>— BIENVENIDO A —</small>
+            <span class="glitch" data-text="THE THING">THE THING</span>
+          </h1>
+          <p class="hero__lead"><span id="typed"></span><span class="caret" aria-hidden="true"></span></p>
+          <div class="hero__cta">
+            <a class="btn btn--solid" href="#juegos">▶ Ver juegos</a>
+            <a class="btn" href="#noticias">Últimas noticias</a>
+          </div>
+        </div>
+        <div class="hero__art-wrap" id="heroArt">
+          <div class="hero__art">
+            <img src="assets/img/logo.webp" alt="Logo de THE THING: un gato glitch con ojos que gotean" width="680" height="740">
+            <img class="ghost-r" src="assets/img/logo.webp" alt="" aria-hidden="true">
+            <img class="ghost-c" src="assets/img/logo.webp" alt="" aria-hidden="true">
+          </div>
+        </div>
+      </div>
+      <a class="scroll-hint" href="#juegos">PRESIONA ▼<br><span class="blink">START</span></a>
+    </section>
+
+    <!-- CINTA DE NOTICIAS -->
+    <div class="ticker-wrap">
+      <div class="ticker" aria-label="Titulares">
+        <div class="ticker__track" id="ticker"></div>
+      </div>
+    </div>
+
+    <!-- JUEGOS / APPS -->
+    <section class="section" id="juegos">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Player 1 — Select</p>
+            <h2 class="section-title">Selecciona tu juego</h2>
+            <p class="section-sub">Nuestros juegos y aplicaciones: los que ya puedes jugar y los que se están cocinando en el laboratorio.</p>
+          </div>
+        </div>
+        <div class="games" id="games"></div>
+      </div>
+    </section>
+
+    <!-- NOTICIAS -->
+    <section class="section section--alt" id="noticias">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Transmisión entrante</p>
+            <h2 class="section-title">Noticias</h2>
+            <p class="section-sub">Diarios de desarrollo, anuncios y todo lo que pasa dentro del estudio.</p>
+          </div>
+          <button class="btn btn--sm" type="button" id="moreNews" hidden>Cargar más ▼</button>
+        </div>
+        <div class="news" id="news"></div>
+      </div>
+    </section>
+
+    <!-- DATOS -->
+    <section class="section" id="datos">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">High scores</p>
+            <h2 class="section-title">Datos del estudio</h2>
+            <p class="section-sub">Los números que importan (y algunos que no tanto).</p>
+          </div>
+        </div>
+        <div class="scoreboard reveal" id="scores"></div>
+      </div>
+    </section>
+
+    <!-- GALERÍA -->
+    <section class="section section--alt" id="galeria">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Archivo visual</p>
+            <h2 class="section-title">Galería</h2>
+            <p class="section-sub">Capturas, arte conceptual y fotos detrás de cámaras.</p>
+          </div>
+        </div>
+        <div class="gallery" id="gallery"></div>
+      </div>
+    </section>
+
+    <!-- ESTUDIO -->
+    <section class="section" id="estudio">
+      <div class="container about">
+        <div class="reveal">
+          <p class="eyebrow">Ficha de personaje</p>
+          <h2 class="section-title">El estudio</h2>
+          <div class="terminal">
+            <div class="terminal__bar" aria-hidden="true"><i></i><i></i><i></i></div>
+            <p><span class="dim">C:\THETHING&gt;</span> type manifiesto.txt</p>
+            <p>THE THING es un estudio independiente nacido de la nostalgia por los cartuchos, las cintas VHS y las noches jugando hasta tarde.</p>
+            <p>Hacemos juegos extraños, con personalidad y un poco de miedo. Juegos que se sientan como encontrar una cinta sin etiqueta en el ático.</p>
+            <p><span class="dim">C:\THETHING&gt;</span> <span class="blink">_</span></p>
+          </div>
+        </div>
+        <div class="stats reveal" style="--d:.15s">
+          <p class="eyebrow">Atributos</p>
+          <div class="stat"><div class="stat__row"><span>CREATIVIDAD</span><span>99</span></div><div class="stat__bar"><span style="--v:99%"></span></div></div>
+          <div class="stat"><div class="stat__row"><span>NOSTALGIA</span><span>95</span></div><div class="stat__bar"><span style="--v:95%; --c: var(--amber)"></span></div></div>
+          <div class="stat"><div class="stat__row"><span>MISTERIO</span><span>90</span></div><div class="stat__bar"><span style="--v:90%; --c: var(--red)"></span></div></div>
+          <div class="stat"><div class="stat__row"><span>PIXELES POR PULGADA</span><span>87</span></div><div class="stat__bar"><span style="--v:87%; --c: var(--cyan)"></span></div></div>
+          <div class="stat"><div class="stat__row"><span>HORAS DE SUEÑO</span><span>12</span></div><div class="stat__bar"><span style="--v:12%; --c: var(--green)"></span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTINUAR / CONTACTO -->
+    <section class="section section--alt continue" id="contacto">
+      <div class="container reveal">
+        <p class="eyebrow">Game over?</p>
+        <h2 class="section-title">¿Continuar?</h2>
+        <div class="continue__count" id="countdown" aria-hidden="true">9</div>
+        <p>¿Prensa, colaboraciones o simplemente quieres saludar? Inserta una moneda y escríbenos.</p>
+        <a class="btn btn--solid" href="mailto:contacto@thethinggame.com">✉ Insertar moneda</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <span>© <span id="year"></span> THE THING · Todos los derechos reservados</span>
+      <a href="admin.html" data-transition>[ ACCESO STAFF ]</a>
+    </div>
+  </footer>
+
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
