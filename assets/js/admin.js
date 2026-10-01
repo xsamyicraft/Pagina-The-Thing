@@ -410,6 +410,11 @@
       if (!/^image\/(png|jpeg|gif|webp|avif)$/.test(file.type)) return toast('Formato no permitido', 'error');
       if (file.size > 8 * 1024 * 1024) return toast('La imagen supera 8 MB', 'error');
       zone.innerHTML = '<div>SUBIENDO…</div><div class="dropzone__bar"><span></span></div>';
+      if (window.TT.demo) {     // modo demo: la imagen se guarda en el navegador
+        window.TT.demo.imageToDataUrl(file).then((url) => { setImage(url); toast('Imagen cargada (demo)'); })
+          .catch((ex) => { setImage(form.image.value); toast(ex.message, 'error'); });
+        return;
+      }
       const bar = zone.querySelector('.dropzone__bar span');
       const data = new FormData();
       data.append('file', file);
@@ -586,7 +591,7 @@
     let lpStatus;
     if (!lp.configured) lpStatus = '<div class="banner">LevelPlay no está conectado. Rellena tus claves abajo para ver las ganancias de los anuncios de Unity.</div>';
     else if (lp.error) lpStatus = `<div class="banner banner--error">✖ ${esc(lp.error)}${lp.fetchedAt ? ` · Mostrando datos guardados del ${esc(formatDate(lp.fetchedAt))}` : ''}</div>`;
-    else lpStatus = `<div class="banner banner--ok">✓ LevelPlay conectado · ${esc(lp.range ? `${lp.range.start} → ${lp.range.end}` : '')} · actualizado ${esc(new Date(lp.fetchedAt).toLocaleString('es'))}</div>`;
+    else lpStatus = `<div class="banner banner--ok">✓ LevelPlay conectado${window.TT.demo ? ' (DATOS SIMULADOS DE LA DEMO)' : ''} · ${esc(lp.range ? `${lp.range.start} → ${lp.range.end}` : '')} · actualizado ${esc(new Date(lp.fetchedAt).toLocaleString('es'))}</div>`;
 
     const kpi = (label, value, note = '') => `<div class="kpi"><span>${label}</span><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`;
 

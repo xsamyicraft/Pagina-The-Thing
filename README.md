@@ -27,6 +27,26 @@ y funciona en cualquier hosting compartido con PHP 7.4 o superior (Hostinger inc
 
 ---
 
+## Probar sin servidor (modo demo)
+
+Puedes probar **todo** sin subir nada:
+
+1. Descarga el `.zip` y **descomprímelo** en una carpeta de tu computadora
+   (no lo abras desde dentro del zip).
+2. Haz **doble clic en `index.html`**. Se abre en tu navegador en *modo demo*
+   (verás el aviso "MODO DEMO" abajo a la izquierda).
+3. Prueba como jugador: *Nuevo jugador* → crea una cuenta (inventada), vota,
+   deja reseñas y mira la campana de avisos.
+4. Prueba como dueño: abajo del todo, *[ ACCESO STAFF ]* → la primera vez crea
+   una contraseña cualquiera. Publica noticias/juegos con imágenes, mira
+   *Estadísticas* (escribe cualquier texto en las claves de LevelPlay para ver
+   datos **simulados**) y *Comunidad*.
+
+En el modo demo todo se guarda solo en **ese navegador** (nadie más lo ve) y el
+botón *Reiniciar demo* lo borra. Los correos no se envían de verdad. En el
+servidor real el modo demo no se activa (salvo que añadas `?demo=1` a la
+dirección, útil para enseñar la web sin tocar los datos reales).
+
 ## Instalación en Hostinger
 
 1. Entra en **hPanel → Sitios web → Administrar → Administrador de archivos**.

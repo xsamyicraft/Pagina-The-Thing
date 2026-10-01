@@ -10,12 +10,12 @@ body.admin { min-height: 100svh; }
 .screen--login {
   min-height: 100svh; display: grid; place-items: center; padding: 24px 16px;
   background:
-    radial-gradient(circle at 50% 30%, rgba(var(--acc-rgb), .07), transparent 55%),
+    radial-gradient(circle at 50% 30%, rgba(var(--line-rgb), .08), transparent 55%),
     var(--bg);
 }
 .login-card {
   width: min(420px, 100%); padding: 36px 28px 28px; background: var(--panel); text-align: center;
-  box-shadow: inset 0 0 0 2px var(--text), 10px 10px 0 var(--acc), -4px -4px 0 var(--cyan);
+  box-shadow: inset 0 0 0 2px var(--text); outline: 2px solid var(--line-acc); outline-offset: 5px;
   animation: crt-on .7s var(--ease-crt) both;
 }
 .login-card__logo { width: 110px; height: auto; margin: 0 auto 16px; }
@@ -50,7 +50,7 @@ body.admin { min-height: 100svh; }
 .field textarea { min-height: 180px; resize: vertical; line-height: 1.6; }
 .field input:focus,
 .field textarea:focus,
-.field select:focus { outline: none; box-shadow: inset 0 0 0 2px var(--cyan), 0 0 0 3px rgba(56, 232, 255, .15); }
+.field select:focus { outline: 2px solid var(--line-acc); outline-offset: 3px; box-shadow: inset 0 0 0 2px var(--text); }
 .field small { color: var(--muted); font-size: 12px; }
 .form__error { min-height: 1.2em; margin: 0; color: var(--red); font-family: var(--term); font-size: 20px; }
 .form__hint { margin: 0; color: var(--muted); font-size: 14px; }
@@ -121,7 +121,7 @@ body.admin { min-height: 100svh; }
   padding: 20px; background: var(--panel); box-shadow: inset 0 0 0 2px var(--line); border: 0; text-align: left;
   transition: box-shadow .25s, transform .25s var(--ease-out);
 }
-.card-stat:hover { box-shadow: inset 0 0 0 2px var(--text), 6px 6px 0 var(--acc); transform: translate(-2px, -2px); }
+.card-stat:hover { box-shadow: inset 0 0 0 2px var(--text); outline: 2px solid var(--line-acc); outline-offset: 4px; transform: translate(-2px, -2px); }
 .card-stat b { display: block; font-family: var(--pixel); font-size: 28px; margin: 8px 0; }
 .card-stat span { font-family: var(--term); font-size: 20px; color: var(--muted); text-transform: uppercase; }
 
@@ -178,7 +178,7 @@ body.admin { min-height: 100svh; }
 .kpi small { color: var(--muted); font-size: 12px; }
 
 .banner { padding: 12px 16px; margin-bottom: 20px; font-family: var(--term); font-size: 20px; color: var(--amber); box-shadow: inset 3px 0 0 var(--amber), inset 0 0 0 2px var(--line); background: var(--panel); }
-.banner--ok { color: var(--acc); box-shadow: inset 3px 0 0 var(--acc), inset 0 0 0 2px var(--line); }
+.banner--ok { color: var(--acc); box-shadow: inset 0 0 0 2px var(--line); border-left: 6px double var(--line-acc); }
 .banner--error { color: var(--red); box-shadow: inset 3px 0 0 var(--red), inset 0 0 0 2px var(--line); }
 
 .box + .box, .kpis + .box, .box + form.box, form.box + .box { margin-top: 24px; }
