@@ -25,7 +25,7 @@
   function seed() {
     const item = (days, f) => ({
       id: id(), type: '', title: '', summary: '', body: '', image: '', link: '', platform: '', status: '', value: '',
-      featured: false, appKey: '', downloads: '', ...f, createdAt: daysAgo(days), updatedAt: daysAgo(days),
+      featured: false, appKey: '', downloads: '', playPackage: '', videoUrl: '', price: '', currency: 'USD', sizes: '', ...f, createdAt: daysAgo(days), updatedAt: daysAgo(days),
     });
     return {
       admin: { email: 'admin@thethinggame.com', password: '' },
@@ -35,6 +35,9 @@
       votes: {},
       notifications: [],
       levelplay: { configured: false, fetchedAt: null },
+      googleplay: { configured: false },
+      pin: null,
+      pendingPin: false,
       content: [
         item(2, { type: 'app', title: 'PROYECTO: THE THING', platform: 'PC', status: 'En desarrollo', featured: true, appKey: 'demo1a2b3', downloads: '15300',
           summary: 'Nuestro primer título. Un survival de terror retro donde nada es lo que parece… ni siquiera el gato.',
@@ -44,6 +47,9 @@
           body: 'Hoy encendemos la máquina por primera vez.\n\n**THE THING** es un estudio nuevo con una idea clara: hacer juegos raros, memorables y con alma de cartucho viejo.' }),
         item(0, { type: 'news', title: 'Diario de desarrollo #0', summary: 'Primeros bocetos, primeras ideas y demasiadas tazas de café.',
           body: 'Esta es una noticia de ejemplo. Puedes editarla o borrarla desde el panel de administración.' }),
+        item(5, { type: 'product', title: 'Camiseta "The Thing"', price: '24.99', sizes: 'S, M, L, XL', status: 'Disponible',
+          summary: 'Camiseta negra 100% algodón con el gato glitch.', image: 'assets/img/logo-small.webp' }),
+        item(5, { type: 'product', title: 'Taza "Insert Coin"', price: '12.50', status: 'Próximamente', summary: 'Para el café de las sesiones nocturnas.' }),
         item(3, { type: 'data', title: 'Proyectos en marcha', value: '1', summary: 'Y contando.' }),
         item(3, { type: 'data', title: 'Tazas de café', value: '9999', summary: 'Estimación conservadora.' }),
         item(3, { type: 'data', title: 'Bugs aplastados', value: '404', summary: 'Los que encontramos.' }),
@@ -56,7 +62,10 @@
   function load() {
     try {
       const db = JSON.parse(localStorage.getItem(KEY));
-      if (db && db.content) return db;
+      if (db && db.content) {
+        if (!db.googleplay) db.googleplay = { configured: false };
+        return db;
+      }
     } catch { /* datos dañados: se reinician */ }
     return seed();
   }
@@ -78,7 +87,7 @@
   const pubMember = (m) => ({ id: m.id, name: m.name, email: m.email, emailNotify: !!m.emailNotify, createdAt: m.createdAt });
   const pubItem = (i) => {
     if (db.session.admin) return { ...i };
-    const { appKey, downloads, ...rest } = i;
+    const { appKey, downloads, playPackage, ...rest } = i;
     return rest;
   };
   const needAdmin = () => { if (!db.session.admin) throw httpError(401, 'No autorizado'); };
@@ -120,7 +129,41 @@
     return { items: items.slice(0, 50), unread: items.filter((n) => n.createdAt > lastSeen).length, lastSeen };
   }
 
-  /* Datos simulados de LevelPlay: deterministas para cada app */
+  /* Correo con la plantilla de la web (igual que api/_mail.php) */
+  function mailHtml(preheader, inner) {
+    const f = "'Courier New', Courier, monospace";
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `<!doctype html><html lang="es"><head><meta charset="utf-8"><base href="${location.href}"></head><body style="margin:0;background:#050506">
+      <div style="display:none">${preheader}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#050506"><tr><td align="center" style="padding:28px 12px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;border:6px double #ff3355;background:#111113;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(0,0,0,.25) 3px,transparent 4px)">
+      <tr><td style="padding:22px 28px 6px;font-family:${f};font-size:12px;color:#ff3355;letter-spacing:2px">● REC<span style="float:right;color:#8f8b80">CH-01 · ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}</span></td></tr>
+      <tr><td align="center" style="padding:10px 28px 0"><img src="assets/img/logo-email.png" width="120" alt="THE THING" style="display:block;width:120px"></td></tr>
+      <tr><td align="center" style="padding:8px 28px 18px;font-family:${f};font-size:22px;font-weight:bold;letter-spacing:6px;color:#ebe6d8">THE THING<div style="font-size:11px;letter-spacing:4px;color:#8f8b80;font-weight:normal;margin-top:4px">GAME STUDIO</div></td></tr>
+      <tr><td style="padding:0 28px"><div style="border-top:2px solid #ff3355;border-bottom:2px solid #ff3355;height:2px"></div></td></tr>
+      <tr><td style="padding:26px 28px 30px;font-family:${f};font-size:15px;line-height:1.6;color:#ebe6d8">${inner}</td></tr>
+      <tr><td style="padding:16px 28px 22px;border-top:1px dashed #2b2b31;font-family:${f};font-size:11px;color:#8f8b80;text-align:center">INSERT COIN TO CONTINUE<br>© ${d.getFullYear()} THE THING</td></tr>
+      </table></td></tr></table></body></html>`;
+  }
+  function pinMail(pin) {
+    const cells = pin.split('').map((x) => `<td style="padding:0 3px"><div style="border:4px double #ff3355;background:#000;color:#6bff7f;font-family:'Courier New',monospace;font-size:30px;font-weight:bold;width:40px;line-height:54px;text-align:center">${x}</div></td>`).join('');
+    return mailHtml(`Tu PIN de acceso: ${pin}`, `<div style="font-size:13px;letter-spacing:3px;color:#6bff7f;margin:0 0 8px">■ ACCESO STAFF</div>
+      <h1 style="margin:0 0 16px;font-size:24px;color:#ebe6d8">Tu PIN de acceso</h1>
+      <p style="margin:0 0 6px;color:#8f8b80">Alguien (esperamos que tú) ha introducido la contraseña correcta del panel de THE THING. Para terminar de entrar escribe este código:</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px auto"><tr>${cells}</tr></table>
+      <p style="margin:0;text-align:center;color:#6bff7f">&gt; Caduca en 10 minutos_</p>
+      <p style="margin:22px 0 0;padding:12px 14px;border:1px dashed #2b2b31;font-size:12px;color:#8f8b80">IP: 127.0.0.1 (demo)<br><span style="color:#ff3355">¿No fuiste tú?</span> Alguien conoce tu contraseña: cámbiala cuanto antes. Sin este PIN no puede entrar.</p>`);
+  }
+  function newPin() {
+    const pin = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
+    db.pin = { pin, expires: Date.now() + 10 * 60000, tries: 0 };
+    db.pendingPin = true;
+    db.session.admin = false;
+    return { step: 'pin', sentTo: 'ad•••@thethinggame.com', mailSent: true, minutes: 10, demoMail: pinMail(pin) };
+  }
+
+  /* Datos de EJEMPLO de LevelPlay (la demo no puede leer los reales) */
   function levelplayDemo(days) {
     const games = db.content.filter((i) => i.type === 'app');
     const apps = games.filter((g) => g.appKey).map((g, i) => ({ appKey: g.appKey, appName: g.title, platform: g.platform || 'Android', f: 1 / (i + 1) }));
@@ -137,8 +180,9 @@
         const rev = Math.round(imp * 0.0065 * 100) / 100;
         const au = Math.round(imp / 4);
         row.revenue += rev; row.impressions += imp; row.activeUsers += au;
-        const b = byApp[a.appKey] || (byApp[a.appKey] = { appKey: a.appKey, appName: a.appName, platform: a.platform, revenue: 0, impressions: 0, activeUsers: 0, days: 0 });
+        const b = byApp[a.appKey] || (byApp[a.appKey] = { appKey: a.appKey, appName: a.appName, platform: a.platform, revenue: 0, impressions: 0, activeUsers: 0, days: 0, daily: [] });
         b.revenue += rev; b.impressions += imp; b.activeUsers += au; b.days++;
+        b.daily.push({ date, revenue: rev, impressions: imp, activeUsers: au });
       });
       row.revenue = Math.round(row.revenue * 100) / 100;
       totals.revenue += row.revenue; totals.impressions += row.impressions; totals.activeUsers += row.activeUsers;
@@ -161,20 +205,33 @@
 
   const routes = {
     'auth.php': {
-      status: () => ({ user: db.session.admin ? db.admin.email : null, needsSetup: !db.admin.password, email: db.admin.email }),
+      status: () => ({ user: db.session.admin ? db.admin.email : null, needsSetup: !db.admin.password, email: db.admin.email, pendingPin: !!db.pendingPin, sentTo: 'ad•••@thethinggame.com' }),
       setup: (b) => {
         if (db.admin.password) throw httpError(409, 'La contraseña ya fue configurada');
         if (String(b.password || '').length < 8) throw httpError(400, 'La contraseña debe tener al menos 8 caracteres');
         db.admin.password = b.password;
-        db.session.admin = true;
-        return { user: db.admin.email };
+        return newPin();
       },
       login: (b) => {
         if (String(b.email || '').toLowerCase() !== db.admin.email || b.password !== db.admin.password || !db.admin.password) throw httpError(401, 'Credenciales incorrectas');
+        return newPin();
+      },
+      resend: () => {
+        if (!db.pendingPin) throw httpError(401, 'Vuelve a escribir tu contraseña');
+        return newPin();
+      },
+      verify: (b) => {
+        if (!db.pendingPin || !db.pin || db.pin.expires < Date.now() || db.pin.tries >= 5) {
+          db.pendingPin = false;
+          throw httpError(401, 'El PIN caducó o se usó demasiadas veces. Vuelve a entrar.');
+        }
+        if (String(b.pin) !== db.pin.pin) { db.pin.tries++; throw httpError(400, 'PIN incorrecto'); }
+        db.pin = null;
+        db.pendingPin = false;
         db.session.admin = true;
         return { user: db.admin.email };
       },
-      logout: () => { db.session.admin = false; return { ok: true }; },
+      logout: () => { db.session.admin = false; db.pendingPin = false; return { ok: true }; },
       password: (b) => {
         needAdmin();
         if (b.current !== db.admin.password) throw httpError(400, 'La contraseña actual no es correcta');
@@ -200,10 +257,12 @@
         const t = now();
         const it = { id: id(), type: b.type, title: b.title, summary: b.summary || '', body: b.body || '', image: b.image || '', link: b.link || '',
           platform: b.platform || '', status: b.status || '', value: b.value || '', featured: !!b.featured, appKey: b.appKey || '',
-          downloads: String(b.downloads || '').replace(/\D/g, ''), createdAt: t, updatedAt: t };
+          downloads: String(b.downloads || '').replace(/\D/g, ''), playPackage: b.playPackage || '', videoUrl: b.videoUrl || '',
+          price: String(b.price || '').replace(',', '.').replace(/[^\d.]/g, ''), currency: b.currency || 'USD', sizes: b.sizes || '', createdAt: t, updatedAt: t };
+        if (it.type === 'video' && !it.videoUrl) throw httpError(400, 'Falta el vídeo (enlace de YouTube/Vimeo)');
         db.content.push(it);
         let emailed = 0;
-        if (b.notify) emailed = notify(`${{ app: 'Nuevo juego', news: 'Nueva noticia', data: 'Nuevo dato', image: 'Nueva imagen en la galería' }[it.type]}: ${it.title}`, it.summary, it.type === 'data' ? '' : it.id, it.type);
+        if (b.notify) emailed = notify(`${{ app: 'Nuevo juego', news: 'Nueva noticia', data: 'Nuevo dato', image: 'Nueva imagen en la galería', video: 'Nuevo vídeo', product: 'Nuevo en la tienda' }[it.type]}: ${it.title}`, it.summary, it.type === 'data' ? '' : it.id, it.type);
         return { ...it, _emailed: emailed };
       },
       update: (b, q) => {
@@ -211,7 +270,9 @@
         const it = db.content.find((i) => i.id === q.get('id'));
         if (!it) throw httpError(404, 'No encontrado');
         if (!b.title) throw httpError(400, 'El título es obligatorio');
-        ['title', 'summary', 'body', 'image', 'link', 'platform', 'status', 'value', 'appKey'].forEach((k) => { it[k] = b[k] || ''; });
+        ['title', 'summary', 'body', 'image', 'link', 'platform', 'status', 'value', 'appKey', 'playPackage', 'videoUrl', 'sizes'].forEach((k) => { it[k] = b[k] || ''; });
+        it.price = String(b.price || '').replace(',', '.').replace(/[^\d.]/g, '');
+        it.currency = b.currency || 'USD';
         it.downloads = String(b.downloads || '').replace(/\D/g, '');
         it.featured = !!b.featured;
         it.updatedAt = now();
@@ -318,13 +379,19 @@
         const days = [7, 30, 90].includes(Number(q.get('days'))) ? Number(q.get('days')) : 30;
         const s = summary();
         const lp = db.levelplay.configured ? levelplayDemo(days) : null;
-        const games = db.content.filter((i) => i.type === 'app').map((g) => ({
-          id: g.id, title: g.title, image: g.image, platform: g.platform,
-          downloads: g.downloads === '' ? null : Number(g.downloads), appKey: g.appKey,
+        const exampleDl = (pkg) => (pkg ? 1000 + ([...pkg].reduce((h, ch) => h + ch.charCodeAt(0), 0) * 37) % 20000 : null);
+        const games = db.content.filter((i) => i.type === 'app').map((g) => {
+          const play = db.googleplay.configured ? exampleDl(g.playPackage) : null;
+          const other = g.downloads === '' ? null : Number(g.downloads);
+          return {
+          id: g.id, title: g.title, image: g.image, platform: g.platform, playPackage: g.playPackage || '',
+          downloads: play == null && other == null ? null : (play || 0) + (other || 0), downloadsPlay: play, downloadsOther: other,
+          installs30: play == null ? null : Math.round(play / 12), playError: null, appKey: g.appKey,
           rating: s.ratings[g.id] ? s.ratings[g.id].avg : null, reviews: s.ratings[g.id] ? s.ratings[g.id].count : 0,
           comments: s.comments[g.id] || 0, votesBest: s.votes.best[g.id] || 0, votesPlayed: s.votes.played[g.id] || 0,
           levelplay: lp && g.appKey ? lp.apps[g.appKey] || null : null,
-        }));
+        };
+        });
         const ratings = db.comments.filter((c) => c.rating).map((c) => c.rating);
         const linked = games.map((g) => g.appKey).filter(Boolean);
         return {
@@ -341,14 +408,44 @@
             configured: db.levelplay.configured, error: null, fetchedAt: db.levelplay.fetchedAt,
             totals: lp && lp.totals, daily: lp ? lp.daily : [], range: lp && lp.range,
             unlinkedApps: lp ? Object.values(lp.apps).filter((a) => !linked.includes(a.appKey)) : [],
+            apps: lp ? Object.values(lp.apps) : [],
+            demoNote: db.levelplay.configured ? (db.levelplay.realCheck || 'MODO DEMO: estos números son de EJEMPLO, no son tus datos. Para ver tus datos reales de LevelPlay la web tiene que estar en un servidor con PHP (Hostinger o «probar-con-php» en tu computadora).') : null,
           },
+          googleplay: { configured: db.googleplay.configured, error: null },
         };
       },
-      levelplay_save: (b) => {
+      levelplay_save: async (b) => {
         needAdmin();
         if (!b.secretKey || !b.refreshToken) throw httpError(400, 'Faltan la Secret Key o el Refresh Token');
-        db.levelplay = { configured: true, fetchedAt: now() };
+        // Intento real desde el navegador: LevelPlay no lo permite sin servidor (CORS)
+        let realCheck = null;
+        try {
+          const ctl = new AbortController();
+          setTimeout(() => ctl.abort(), 6000);
+          const r = await fetch('https://platform.ironsrc.com/partners/publisher/auth', { headers: { secretkey: b.secretKey, refreshToken: b.refreshToken }, signal: ctl.signal });
+          realCheck = r.ok
+            ? 'MODO DEMO: tus claves de LevelPlay son correctas, pero la demo solo muestra números de EJEMPLO. Súbela a un servidor con PHP para ver los reales.'
+            : `MODO DEMO: LevelPlay rechazó las claves (HTTP ${r.status}). Los números son de EJEMPLO.`;
+        } catch { /* bloqueado por el navegador: se usa el aviso general */ }
+        db = load();
+        db.levelplay = { configured: true, fetchedAt: now(), realCheck };
         return { ok: true };
+      },
+      levelplay_debug: () => { throw httpError(400, 'En el modo demo no hay conexión real con LevelPlay: el navegador bloquea su API. Usa Hostinger o «probar-con-php».'); },
+      googleplay_save: (b) => {
+        needAdmin();
+        if (!b.serviceAccount || !b.bucket) throw httpError(400, 'Faltan el JSON de la cuenta de servicio o el bucket');
+        try { JSON.parse(b.serviceAccount); } catch { throw httpError(400, 'El JSON de la cuenta de servicio no es válido'); }
+        db.googleplay = { configured: true };
+        return { ok: true };
+      },
+      googleplay_clear: () => { needAdmin(); db.googleplay = { configured: false }; return { ok: true }; },
+      play_downloads: (b, q) => {
+        needAdmin();
+        if (!db.googleplay.configured) throw httpError(400, 'Google Play no está conectado (pestaña Estadísticas)');
+        const pkg = q.get('package') || '';
+        const total = 1000 + ([...pkg].reduce((h, ch) => h + ch.charCodeAt(0), 0) * 37) % 20000;
+        return { total, last30: Math.round(total / 12), demo: true };
       },
       levelplay_refresh: () => { needAdmin(); db.levelplay.fetchedAt = now(); return { ok: true }; },
       levelplay_clear: () => { needAdmin(); db.levelplay = { configured: false, fetchedAt: null }; return { ok: true }; },
@@ -390,7 +487,7 @@
     await new Promise((r) => setTimeout(r, 120));          // pequeña espera, como un servidor real
     if (!handler) throw httpError(404, 'Ruta no encontrada (demo)');
     db = load();
-    const result = handler(options.json || {}, url.searchParams);
+    const result = await handler(options.json || {}, url.searchParams);
     save();
     return JSON.parse(JSON.stringify(result));
   }

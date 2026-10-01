@@ -10,11 +10,16 @@
  *   GET  stats.php?action=comments              → reseñas y comentarios (moderación)
  *   GET  stats.php?action=notifications         → avisos enviados
  *   POST stats.php?action=notify                → { title, text, item } envía un aviso a los jugadores
+ *   GET  stats.php?action=levelplay_debug       → primeras filas crudas de LevelPlay (diagnóstico)
+ *   POST stats.php?action=googleplay_save       → { serviceAccount, bucket } guarda y prueba Google Play
+ *   POST stats.php?action=googleplay_clear
+ *   GET  stats.php?action=play_downloads&package=com.x.y&force=1 → descargas de un paquete
  */
 
 declare(strict_types=1);
 require_once __DIR__ . '/_lib.php';
 require_once __DIR__ . '/_levelplay.php';
+require_once __DIR__ . '/_googleplay.php';
 
 require_same_origin();
 require_admin();
@@ -25,8 +30,14 @@ if ($action === 'overview' && $method === 'GET') {
     $days = (int) ($_GET['days'] ?? 30);
     if (!in_array($days, [7, 30, 90], true)) $days = 30;
     $lp = levelplay_report($days);
+    $packages = with_db(function (array &$db) {
+        return array_values(array_filter(array_map(function ($i) {
+            return $i['type'] === 'app' ? ($i['playPackage'] ?? '') : '';
+        }, $db['content'])));
+    });
+    $gp = googleplay_downloads($packages, !empty($_GET['force']));
 
-    $res = with_db(function (array &$db) use ($lp, $days) {
+    $res = with_db(function (array &$db) use ($lp, $days, $gp) {
         $s = community_summary($db);
         $ratings = (array) $s['ratings'];
         $best = (array) $s['votes']['best'];
@@ -38,9 +49,15 @@ if ($action === 'overview' && $method === 'GET') {
         foreach ($db['content'] as $i) {
             if ($i['type'] !== 'app') continue;
             $app = ($i['appKey'] ?? '') !== '' ? ($lpApps[$i['appKey']] ?? null) : null;
+            $pkg = $i['playPackage'] ?? '';
+            $play = $pkg !== '' ? ($gp['packages'][$pkg] ?? null) : null;
+            $manual = ($i['downloads'] ?? '') === '' ? null : (int) $i['downloads'];
+            $playTotal = $play && isset($play['total']) ? (int) $play['total'] : null;
             $games[] = [
                 'id' => $i['id'], 'title' => $i['title'], 'image' => $i['image'], 'platform' => $i['platform'],
-                'downloads' => ($i['downloads'] ?? '') === '' ? null : (int) $i['downloads'],
+                'downloads' => $playTotal === null && $manual === null ? null : ($playTotal ?? 0) + ($manual ?? 0),
+                'downloadsPlay' => $playTotal, 'downloadsOther' => $manual,
+                'installs30' => $play['last30'] ?? null, 'playError' => $play['error'] ?? null, 'playPackage' => $pkg,
                 'appKey' => $i['appKey'] ?? '',
                 'rating' => $ratings[$i['id']]['avg'] ?? null, 'reviews' => $ratings[$i['id']]['count'] ?? 0,
                 'comments' => $comments[$i['id']] ?? 0,
@@ -78,8 +95,10 @@ if ($action === 'overview' && $method === 'GET') {
                 'configured' => $lp['configured'], 'error' => $lp['error'], 'fetchedAt' => $lp['fetchedAt'],
                 'totals' => $lp['data']['totals'] ?? null, 'daily' => $lp['data']['daily'] ?? [],
                 'range' => $lp['data']['range'] ?? null, 'unlinkedApps' => $unlinked,
+                'apps' => array_values($lpApps),
                 'hasKeys' => $lp['configured'],
             ],
+            'googleplay' => ['configured' => $gp['configured'], 'error' => $gp['error']],
         ];
     });
     respond(200, $res);
@@ -125,6 +144,25 @@ if ($action === 'comments' && $method === 'GET') {
     respond(200, $list);
 }
 
+if ($action === 'levelplay_debug' && $method === 'GET') {
+    try {
+        respond(200, levelplay_raw_sample());
+    } catch (RuntimeException $e) {
+        fail(502, $e->getMessage());
+    }
+}
+
+if ($action === 'play_downloads' && $method === 'GET') {
+    $pkg = preg_replace('/[^\w.]/', '', (string) ($_GET['package'] ?? ''));
+    if ($pkg === '') fail(400, 'Falta el nombre del paquete');
+    $gp = googleplay_downloads([$pkg], !empty($_GET['force']));
+    if (!$gp['configured']) fail(400, 'Google Play no está conectado (pestaña Estadísticas)');
+    if ($gp['error']) fail(502, $gp['error']);
+    $r = $gp['packages'][$pkg] ?? null;
+    if (!$r || isset($r['error'])) fail(502, $r['error'] ?? 'Sin datos');
+    respond(200, $r);
+}
+
 if ($action === 'notifications' && $method === 'GET') {
     respond(200, with_db(function (array &$db) {
         return array_slice($db['notifications'], 0, 50);
@@ -161,6 +199,39 @@ if ($action === 'levelplay_refresh') {
     $lp = levelplay_report($days, true);
     if ($lp['error']) fail(502, $lp['error']);
     respond(200, ['ok' => true, 'fetchedAt' => $lp['fetchedAt']]);
+}
+
+if ($action === 'googleplay_save') {
+    $in = read_json();
+    $json = trim((string) ($in['serviceAccount'] ?? ''));
+    $bucket = gp_clean_bucket((string) ($in['bucket'] ?? ''));
+    $current = with_db(function (array &$db) {
+        return $db['googleplay'];
+    });
+    if ($json === '') $json = (string) $current['serviceAccount'];
+    if ($bucket === '') $bucket = (string) $current['bucket'];
+    if ($json === '' || $bucket === '') fail(400, 'Faltan el JSON de la cuenta de servicio o el bucket');
+    try {
+        $token = gp_token(gp_parse_account($json));
+        // Prueba de lectura del bucket
+        [$status] = gp_http('GET', GP_STORAGE . rawurlencode($bucket) . '/o?maxResults=1&prefix=stats/', ['Authorization: Bearer ' . $token]);
+        if ($status === 403) throw new RuntimeException('La cuenta de servicio no tiene permiso en Play Console (Usuarios y permisos → invitar con "Ver información de la app y descargar informes masivos"). Los permisos tardan hasta 24 h en activarse.');
+        if ($status === 404) throw new RuntimeException('No existe el bucket "' . $bucket . '"');
+        if ($status !== 200) throw new RuntimeException('Google Cloud Storage respondió HTTP ' . $status);
+    } catch (RuntimeException $e) {
+        fail(400, $e->getMessage());
+    }
+    with_db(function (array &$db) use ($json, $bucket) {
+        $db['googleplay'] = ['serviceAccount' => $json, 'bucket' => $bucket, 'cache' => null];
+    }, true);
+    respond(200, ['ok' => true]);
+}
+
+if ($action === 'googleplay_clear') {
+    with_db(function (array &$db) {
+        $db['googleplay'] = ['serviceAccount' => '', 'bucket' => '', 'cache' => null];
+    }, true);
+    respond(200, ['ok' => true]);
 }
 
 if ($action === 'levelplay_clear') {

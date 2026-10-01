@@ -448,8 +448,208 @@
     }
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Vídeos: cassettes que se meten en el vídeo VHS y se ven en la TV    */
+  /* ------------------------------------------------------------------ */
+
+  let playingTape = null;
+
+  function renderTapes() {
+    const wrap = $('#tapes');
+    const vids = byType('video');
+    if (!vids.length) {
+      wrap.innerHTML = '<div class="empty">NO HAY CASSETTES EN LA ESTANTERÍA… TODAVÍA</div>';
+      return;
+    }
+    const year = (iso) => new Date(iso).getFullYear();
+    wrap.innerHTML = vids.map((v, i) => `
+      <button type="button" class="cassette${playingTape === v.id ? ' playing' : ''}" data-tape="${esc(v.id)}" style="--r:${((i * 53) % 5) - 2}deg; --d:${Math.min(i, 8) * 0.06}s" aria-label="Reproducir ${esc(v.title)}">
+        <span class="cassette__label"><b>${esc(v.title)}</b><small>THE THING · ${year(v.createdAt)} · VHS</small></span>
+        <span class="cassette__window" aria-hidden="true"><i class="reel"></i><i class="reel"></i></span>
+      </button>`).join('');
+  }
+
+  /** Convierte un enlace de YouTube/Vimeo o un archivo en el reproductor adecuado. */
+  function playerHtml(url) {
+    const yt = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/);
+    if (yt) return `<iframe src="https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="Vídeo" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+    const vm = String(url).match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vm) return `<iframe src="https://player.vimeo.com/video/${vm[1]}?autoplay=1" title="Vídeo" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+    return `<video src="${esc(url)}" controls autoplay playsinline></video>`;
+  }
+
+  let vcrTimer = null;
+  function playTape(id) {
+    const v = content.find((i) => i.id === id && i.type === 'video');
+    if (!v) return;
+    const tv = $('#tv');
+    const glass = $('#tvGlass');
+    const vcr = document.querySelector('.vcr');
+    const tape = document.querySelector(`[data-tape="${CSS.escape(id)}"]`);
+    const slot = $('#vcrSlot');
+    beep('select');
+
+    // Animación: el cassette vuela hasta la ranura del vídeo
+    if (tape && !reduceMotion) {
+      const from = tape.getBoundingClientRect();
+      const to = slot.getBoundingClientRect();
+      const fly = tape.cloneNode(true);
+      fly.className = 'cassette cassette-fly';
+      Object.assign(fly.style, { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`, animation: 'none' });
+      document.body.appendChild(fly);
+      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+      const sc = Math.min(1, (to.width * 0.8) / from.width);
+      vcr.classList.add('loading');
+      fly.animate([
+        { transform: 'translate(0,0) rotate(0) scale(1)', opacity: 1 },
+        { transform: `translate(${dx * 0.6}px, ${dy * 0.6 - 60}px) rotate(-8deg) scale(${(1 + sc) / 2})`, opacity: 1, offset: 0.55 },
+        { transform: `translate(${dx}px, ${dy}px) rotate(0) scale(${sc}) scaleY(.15)`, opacity: 0.2 },
+      ], { duration: 750, easing: 'cubic-bezier(.6,0,.3,1)' }).onfinish = () => {
+        fly.remove();
+        vcr.classList.remove('loading');
+        beep('blip');
+      };
+    }
+
+    playingTape = id;
+    document.querySelectorAll('.cassette').forEach((c) => c.classList.toggle('playing', c.dataset.tape === id));
+    tv.classList.remove('playing');
+    tv.classList.add('switching');
+    glass.querySelectorAll('iframe, video').forEach((el) => el.remove());
+    $('#tvOsd').innerHTML = 'CARGANDO…<br><small>▶ PLAY</small>';
+    $('#nowPlaying').innerHTML = `AHORA: <b>${esc(v.title)}</b>${v.summary ? ` — ${esc(v.summary)}` : ''}`;
+    clearInterval(vcrTimer);
+    setTimeout(() => {
+      glass.insertAdjacentHTML('afterbegin', playerHtml(v.videoUrl));
+      tv.classList.remove('switching');
+      tv.classList.add('playing', 'on');
+      setTimeout(() => tv.classList.remove('on'), 650);
+      const start = Date.now();
+      const disp = $('#vcrDisplay');
+      const tick = () => {
+        const t = Math.floor((Date.now() - start) / 1000);
+        disp.textContent = `▶ ${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+      };
+      tick();
+      vcrTimer = setInterval(tick, 1000);
+    }, reduceMotion ? 50 : 900);
+  }
+
+  function ejectTape() {
+    if (!playingTape) return;
+    beep('back');
+    playingTape = null;
+    clearInterval(vcrTimer);
+    const tv = $('#tv');
+    $('#tvGlass').querySelectorAll('iframe, video').forEach((el) => el.remove());
+    tv.classList.remove('playing');
+    $('#tvOsd').innerHTML = 'SIN SEÑAL<br><small>INSERTA UN CASSETTE</small>';
+    $('#vcrDisplay').textContent = '--:--';
+    $('#nowPlaying').textContent = '';
+    document.querySelectorAll('.cassette.playing').forEach((c) => c.classList.remove('playing'));
+  }
+
+  $('#tapes').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-tape]');
+    if (t) playTape(t.dataset.tape);
+  });
+  $('#vcrEject').addEventListener('click', ejectTape);
+
+  /* ------------------------------------------------------------------ */
+  /* Tienda de merch                                                     */
+  /* ------------------------------------------------------------------ */
+
+  const CURRENCIES = { USD: 'en-US', MXN: 'es-MX', EUR: 'es-ES', ARS: 'es-AR', COP: 'es-CO', CLP: 'es-CL', PEN: 'es-PE' };
+  function priceText(p) {
+    if (p.price === '' || p.price == null) return 'CONSULTAR';
+    const cur = CURRENCIES[p.currency] ? p.currency : 'USD';
+    try {
+      return new Intl.NumberFormat(CURRENCIES[cur], { style: 'currency', currency: cur }).format(Number(p.price));
+    } catch {
+      return `$${p.price}`;
+    }
+  }
+  const soldOut = (p) => /agotad|sold/i.test(p.status || '');
+  const sizesOf = (p) => String(p.sizes || '').split(',').map((x) => x.trim()).filter(Boolean);
+
+  function renderShop() {
+    const wrap = $('#shop');
+    const items = byType('product');
+    if (!items.length) {
+      wrap.innerHTML = '<div class="empty" style="grid-column:1/-1">LA TIENDA ABRE PRONTO. INSERT COIN.</div>';
+      return;
+    }
+    wrap.innerHTML = items.map((p, i) => `
+      <button type="button" class="product reveal${soldOut(p) ? ' soldout' : ''}" style="--d:${Math.min(i, 6) * 0.06}s" data-open="${esc(p.id)}">
+        <div class="product__media">${media(p)}<span class="price-tag">${esc(priceText(p))}</span></div>
+        <div class="product__body">
+          ${p.status ? `<div><span class="tag ${soldOut(p) ? '' : statusClass(p.status)}">${esc(p.status)}</span></div>` : ''}
+          <h3 class="product__title">${esc(p.title)}</h3>
+          ${p.summary ? `<p class="product__summary">${esc(p.summary)}</p>` : ''}
+          ${sizesOf(p).length ? `<div class="sizes">${sizesOf(p).map((z) => `<span>${esc(z)}</span>`).join('')}</div>` : ''}
+          <span class="product__cta">${soldOut(p) ? 'Agotado' : 'Ver producto ▶'}</span>
+        </div>
+      </button>`).join('');
+  }
+
+  function openProduct(p) {
+    const sizes = sizesOf(p);
+    const out = soldOut(p);
+    detail.open(`
+      <button class="icon-btn modal__close" type="button" data-close data-autofocus title="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+        <span class="sr-only">Cerrar</span>
+      </button>
+      ${p.image ? `<div class="modal__media" style="aspect-ratio:16/9"><img src="${esc(p.image)}" alt="" style="object-fit:contain;background:#0d0d0f"></div>` : ''}
+      <article class="modal__content">
+        <p class="eyebrow">Tienda oficial</p>
+        ${p.status ? `<span class="tag ${out ? '' : statusClass(p.status)}">${esc(p.status)}</span>` : ''}
+        <h2>${esc(p.title)}</h2>
+        <p class="modal__lead" style="font-family:var(--pixel);font-size:18px;color:var(--acc)">${esc(priceText(p))}</p>
+        ${p.summary ? `<p class="modal__lead">${esc(p.summary)}</p>` : ''}
+        <div class="prose">${formatText(p.body)}</div>
+        ${sizes.length ? `<p class="term" style="margin:16px 0 0;color:var(--muted);font-size:20px">TALLA:</p>
+          <div class="size-pick" role="group" aria-label="Talla">${sizes.map((z, i) => `<button type="button" data-size="${esc(z)}" aria-pressed="${i === 0}">${esc(z)}</button>`).join('')}</div>` : ''}
+        <div class="modal__actions">
+          ${out ? '<span class="btn" aria-disabled="true">Agotado</span>'
+            : `<a class="btn btn--solid" id="buyBtn" href="#" target="_blank" rel="noopener noreferrer">🛒 ${p.link ? 'Comprar' : 'Pedir por correo'}</a>`}
+          <button class="btn" type="button" data-close>◀ Seguir mirando</button>
+        </div>
+      </article>`, () => {
+      if (location.hash.startsWith('#ver-')) history.replaceState(null, '', location.pathname + location.search);
+    });
+    history.replaceState(null, '', `#ver-${p.id}`);
+    const buy = document.getElementById('buyBtn');
+    if (!buy) return;
+    const pick = () => {
+      const sel = detail.panel.querySelector('[data-size][aria-pressed="true"]');
+      return sel ? sel.dataset.size : '';
+    };
+    const update = () => {
+      const size = pick();
+      if (p.link) {
+        buy.href = p.link;
+      } else {
+        const subject = `Pedido: ${p.title}${size ? ` (talla ${size})` : ''}`;
+        const body = `Hola THE THING,\n\nQuiero pedir: ${p.title}${size ? `\nTalla: ${size}` : ''}\nPrecio: ${priceText(p)}\n\nMi nombre:\nMi dirección de envío:\n`;
+        buy.href = `mailto:contacto@thethinggame.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        buy.removeAttribute('target');
+      }
+    };
+    detail.panel.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => {
+      detail.panel.querySelectorAll('[data-size]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      beep('blip');
+      update();
+    }));
+    update();
+    buy.addEventListener('click', () => beep('coin'));
+  }
+
   function renderAll() {
     renderGames();
+    renderTapes();
+    renderShop();
     renderVotes();
     renderNews();
     renderScores();
@@ -469,6 +669,11 @@
     const item = content.find((i) => i.id === id);
     if (!item) return;
     if (item.type === 'image') return openShot(byType('image').indexOf(item));
+    if (item.type === 'video') {
+      document.getElementById('videos').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+      return setTimeout(() => playTape(item.id), reduceMotion ? 0 : 600);
+    }
+    if (item.type === 'product') return openProduct(item);
     const isApp = item.type === 'app';
     const tags = [
       isApp && item.status ? `<span class="tag ${statusClass(item.status)}">${esc(item.status)}</span>` : '',
@@ -503,6 +708,9 @@
   /* Reseñas (juegos) y comentarios (noticias) en formato "código retro" */
   /* ------------------------------------------------------------------ */
 
+  // Cada jugador tiene su color (como P1, P2, P3… en las recreativas), distinto al del texto
+  const PLAYER_COLORS = ['#38e8ff', '#ffb547', '#ff7ad9', '#b18cff', '#ff5f6d', '#7ad7ff', '#ffd84d'];
+  const playerColor = (name) => PLAYER_COLORS[[...String(name)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % PLAYER_COLORS.length];
   const reviewCode = (id) => (String(id).toUpperCase().replace(/[^0-9A-F]/g, '') + '000000000000').slice(0, 12).match(/.{4}/g).join('-');
   let reviewsToken = 0;
 
@@ -559,7 +767,7 @@
           <span class="code-card__code">CÓDIGO ${reviewCode(c.id)}</span>
           ${isApp ? `${starsHtml(c.rating)}<span class="sr-only">${c.rating} de 5 estrellas</span>` : ''}
         </div>
-        <p class="code-card__who">&gt; PLAYER: ${esc(c.name.toUpperCase())} <span>· ${formatDate(c.createdAt, 'vhs')}${c.updatedAt !== c.createdAt ? ' · EDITADO' : ''}</span></p>
+        <p class="code-card__who">&gt; PLAYER: <span class="player" style="--pc:${playerColor(c.name)}">${esc(c.name.toUpperCase())}</span> · ${formatDate(c.createdAt, 'vhs')}${c.updatedAt !== c.createdAt ? ' · EDITADO' : ''}</p>
         <p class="code-card__text">${esc(c.text)}</p>
         ${c.canDelete ? `<button class="code-card__del" type="button" data-del-comment="${esc(c.id)}">[ BORRAR ]</button>` : ''}
       </article>`).join('');
@@ -829,7 +1037,7 @@
       if (!list) return;
       list.innerHTML = res.items.map((n, i) => {
         const unread = n.createdAt > (res.lastSeen || '');
-        const kind = { news: 'Noticia', app: 'Juego', image: 'Galería', data: 'Dato', aviso: 'Aviso' }[n.kind] || 'Aviso';
+        const kind = { news: 'Noticia', app: 'Juego', image: 'Galería', data: 'Dato', video: 'Vídeo', product: 'Tienda', aviso: 'Aviso' }[n.kind] || 'Aviso';
         const inner = `
           <span class="notif__meta"><span class="kind">${unread ? '● ' : ''}${kind}</span><span>${formatDate(n.createdAt, 'vhs')}</span></span>
           <span class="notif__title">${esc(n.title)}</span>

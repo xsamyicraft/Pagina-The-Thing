@@ -11,7 +11,7 @@
     app: {
       label: 'Juegos / apps', one: 'juego o aplicación', nuevo: 'Nuevo juego / app', icon: '▶',
       desc: 'Tus juegos y aplicaciones. El destacado aparece grande en la portada.',
-      fields: ['title', 'summary', 'body', 'image', 'platform', 'status', 'link', 'downloads', 'appKey', 'featured', 'notify'],
+      fields: ['title', 'summary', 'body', 'image', 'platform', 'status', 'link', 'playPackage', 'appKey', 'downloads', 'featured', 'notify'],
     },
     news: {
       label: 'Noticias', one: 'noticia', nuevo: 'Nueva noticia', icon: '✉',
@@ -28,6 +28,16 @@
       desc: 'Capturas, arte conceptual y fotos. Se muestran como polaroids en la portada.',
       fields: ['image', 'title', 'summary', 'notify'],
     },
+    video: {
+      label: 'Vídeos', one: 'vídeo', nuevo: 'Nuevo vídeo', icon: '▷',
+      desc: 'Cada vídeo es un cassette VHS que los visitantes meten en la tele vieja de la portada.',
+      fields: ['title', 'videoUrl', 'summary', 'notify'],
+    },
+    product: {
+      label: 'Tienda', one: 'producto', nuevo: 'Nuevo producto', icon: '$',
+      desc: 'Merch de la tienda. Si no pones enlace de compra, el botón abre un correo de pedido.',
+      fields: ['title', 'price', 'currency', 'summary', 'body', 'image', 'sizes', 'status', 'link', 'notify'],
+    },
   };
 
   const FIELD_LABELS = {
@@ -35,7 +45,11 @@
     news: { title: 'Titular *', summary: 'Entradilla (resumen)', body: 'Cuerpo de la noticia', link: 'Enlace relacionado' },
     data: { title: 'Etiqueta * (ej. "Jugadores")', summary: 'Nota pequeña' },
     image: { title: 'Título *', summary: 'Descripción' },
+    video: { title: 'Título del cassette *', summary: 'Descripción corta' },
+    product: { title: 'Nombre del producto *', summary: 'Descripción corta', body: 'Detalles (materiales, envío…)', link: 'Enlace de compra (Mercado Pago, PayPal, Shopify…)' },
   };
+  const PRODUCT_STATUS = ['Disponible', 'Pocas unidades', 'Próximamente', 'Agotado'];
+  const CURRENCIES = ['USD', 'MXN', 'EUR', 'ARS', 'COP', 'CLP', 'PEN'];
 
   const STATUS = ['En desarrollo', 'Próximamente', 'Acceso anticipado', 'Disponible', 'Beta', 'Cancelado'];
 
@@ -62,6 +76,7 @@
     $('#loading').hidden = true;
     if (status.user) return showDash(status.user);
     showLogin(status);
+    if (status.pendingPin) showPin({ sentTo: status.sentTo, mailSent: true, resumed: true });
   }
 
   /** Explica la causa más probable de que la API no responda. */
@@ -83,6 +98,7 @@
     $('#loginScreen').hidden = false;
     const card = $('#loginCard');
     card.classList.remove('granted');
+    $('#pinForm').hidden = true;
     if (status.needsSetup) {
       $('#loginForm').hidden = true;
       $('#setupForm').hidden = false;
@@ -108,6 +124,93 @@
     beep('error');
   }
 
+  /* --- Paso 2: PIN enviado por correo --- */
+  const pinInputs = [...document.querySelectorAll('#pinBoxes input')];
+
+  function showPin(info) {
+    $('#loginForm').hidden = true;
+    $('#setupForm').hidden = true;
+    $('#pinForm').hidden = false;
+    $('#loginTitle').textContent = 'VERIFICA TU PIN';
+    $('#loginEyebrow').textContent = 'Paso 2 de 2';
+    $('#pinError').textContent = '';
+    let hint = `Te enviamos un PIN de 6 dígitos a <b>${esc(info.sentTo || '')}</b>. Caduca en ${info.minutes || 10} minutos.`;
+    if (info.resumed) hint = `Escribe el PIN que enviamos a <b>${esc(info.sentTo || '')}</b>.`;
+    if (info.mailSent === false && !window.TT.demo) {
+      hint = 'No se pudo enviar el correo desde este servidor. Abre <b>data/ultimo-pin.php</b> con el Administrador de archivos de Hostinger para ver tu PIN (y revisa MAIL_FROM en api/config.php).';
+    }
+    $('#pinHint').innerHTML = hint;
+    pinInputs.forEach((i) => { i.value = ''; });
+    setTimeout(() => pinInputs[0].focus(), 80);
+    beep('select');
+    if (info.demoMail) showDemoMail(info.demoMail);
+  }
+
+  /** En la demo no hay correo: se muestra aquí el email que llegaría. */
+  const mailModal = createModal();
+  function showDemoMail(html) {
+    mailModal.open(`
+      <button class="icon-btn modal__close" type="button" data-close title="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+        <span class="sr-only">Cerrar</span>
+      </button>
+      <div style="padding:14px 18px 8px;font-family:var(--term);font-size:20px;color:var(--muted)">📧 CORREO SIMULADO (modo demo) · así llega a tu bandeja</div>
+      <iframe class="mail-preview" title="Vista previa del correo"></iframe>`);
+    mailModal.panel.querySelector('iframe').srcdoc = html;
+  }
+
+  pinInputs.forEach((input, i) => {
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/\D/g, '').slice(-1);
+      if (input.value && pinInputs[i + 1]) pinInputs[i + 1].focus();
+      if (pinInputs.every((x) => x.value)) $('#pinForm').requestSubmit();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !input.value && pinInputs[i - 1]) pinInputs[i - 1].focus();
+    });
+    input.addEventListener('paste', (e) => {
+      const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+      if (!digits) return;
+      e.preventDefault();
+      digits.split('').forEach((d, k) => { if (pinInputs[k]) pinInputs[k].value = d; });
+      (pinInputs[digits.length] || pinInputs[5]).focus();
+      if (digits.length === 6) $('#pinForm').requestSubmit();
+    });
+  });
+
+  $('#pinForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pin = pinInputs.map((x) => x.value).join('');
+    const err = $('#pinError');
+    if (pin.length !== 6) return denied($('#loginCard'), err, 'Escribe los 6 dígitos');
+    const btn = e.currentTarget.querySelector('[type=submit]');
+    btn.disabled = true;
+    try {
+      const res = await api('api/auth.php?action=verify', { json: { pin } });
+      granted(res.user);
+    } catch (ex) {
+      denied($('#loginCard'), err, ex.message);
+      pinInputs.forEach((x) => { x.value = ''; });
+      pinInputs[0].focus();
+      if (ex.status === 401) setTimeout(() => showLogin({ email: $('#loginEmail').value }), 1600);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  $('#pinResend').addEventListener('click', async () => {
+    try {
+      const res = await api('api/auth.php?action=resend', { method: 'POST' });
+      toast('PIN reenviado');
+      showPin(res);
+    } catch (ex) {
+      denied($('#loginCard'), $('#pinError'), ex.message);
+    }
+  });
+  $('#pinBack').addEventListener('click', () => {
+    api('api/auth.php?action=logout', { method: 'POST' }).catch(() => {});
+    showLogin({ email: $('#loginEmail').value });
+  });
+
   function granted(user) {
     const card = $('#loginCard');
     $('#loginTitle').textContent = 'ACCESO CONCEDIDO';
@@ -126,7 +229,8 @@
     try {
       const res = await api('api/auth.php?action=login', { json: { email: form.email.value, password: form.password.value } });
       form.password.value = '';
-      granted(res.user);
+      if (res.step === 'pin') showPin(res);
+      else granted(res.user);
     } catch (ex) {
       denied($('#loginCard'), err, ex.message);
     } finally {
@@ -144,7 +248,8 @@
     try {
       const res = await api('api/auth.php?action=setup', { json: { password: form.password.value } });
       form.reset();
-      granted(res.user);
+      if (res.step === 'pin') showPin(res);
+      else granted(res.user);
     } catch (ex) {
       denied($('#loginCard'), err, ex.message);
     }
@@ -212,6 +317,7 @@
 
   function thumb(item) {
     if (item.type === 'data') return `<div class="row__thumb">${esc(String(item.value || '?').slice(0, 5))}</div>`;
+    if (item.type === 'video') return '<div class="row__thumb">▷</div>';
     return `<div class="row__thumb">${item.image ? `<img src="${esc(item.image)}" alt="" loading="lazy">` : TYPES[item.type].icon}</div>`;
   }
 
@@ -314,14 +420,33 @@
         return `<label class="field"><span>${esc(labels.link)}</span><input name="link" type="url" maxlength="500" placeholder="https://" value="${v('link')}"></label>`;
       case 'platform':
         return `<label class="field"><span>Plataforma(s)</span><input name="platform" maxlength="80" placeholder="PC, Android, Switch…" value="${v('platform')}"></label>`;
-      case 'status':
+      case 'status': {
+        const opts = type === 'product' ? PRODUCT_STATUS : STATUS;
         return `<label class="field"><span>Estado</span><select name="status">
-          ${['', ...STATUS].map((s) => `<option value="${esc(s)}"${s === (item.status || '') ? ' selected' : ''}>${s || '— Sin estado —'}</option>`).join('')}
-          ${item.status && !STATUS.includes(item.status) ? `<option selected>${v('status')}</option>` : ''}
+          ${['', ...opts].map((s) => `<option value="${esc(s)}"${s === (item.status || '') ? ' selected' : ''}>${s || '— Sin estado —'}</option>`).join('')}
+          ${item.status && !opts.includes(item.status) ? `<option selected>${v('status')}</option>` : ''}
         </select></label>`;
+      }
       case 'downloads':
-        return `<label class="field"><span>Descargas totales (privado)</span><input name="downloads" inputmode="numeric" maxlength="12" placeholder="Ej. 15000" value="${v('downloads')}">
-          <small>Cópialo de Google Play Console / App Store Connect. Solo lo ven los administradores.</small></label>`;
+        return `<label class="field"><span>Descargas en otras tiendas (opcional)</span><input name="downloads" inputmode="numeric" maxlength="12" placeholder="Ej. App Store, itch.io…" value="${v('downloads')}">
+          <small>Las de Google Play se cuentan solas. Aquí solo lo que venga de otras tiendas.</small></label>`;
+      case 'playPackage':
+        return `<div class="field"><span>Paquete de Google Play (descargas automáticas)</span>
+          <div style="display:flex;gap:8px"><input name="playPackage" maxlength="150" placeholder="com.thething.juego" value="${v('playPackage')}" spellcheck="false" style="flex:1">
+          <button class="btn btn--sm" type="button" id="playCheck">Obtener</button></div>
+          <small id="playResult">El identificador de la app en Google Play (está en la URL: play.google.com/store/apps/details?id=<b>com.ejemplo.app</b>).</small></div>`;
+      case 'videoUrl':
+        return `<div class="field"><span>Vídeo * (enlace de YouTube / Vimeo o archivo MP4)</span>
+          <div style="display:flex;gap:8px"><input name="videoUrl" maxlength="500" placeholder="https://www.youtube.com/watch?v=…" value="${v('videoUrl')}" style="flex:1">
+          <label class="btn btn--sm" style="cursor:pointer">Subir MP4<input type="file" accept="video/mp4,video/webm" id="videoFile" hidden></label></div>
+          <div class="dropzone__bar" id="videoBar" hidden><span></span></div>
+          <small>Recomendado: YouTube (no gasta espacio del hosting). Archivos hasta 100 MB.</small></div>`;
+      case 'price':
+        return `<label class="field"><span>Precio</span><input name="price" inputmode="decimal" maxlength="12" placeholder="24.99" value="${v('price')}"></label>`;
+      case 'currency':
+        return `<label class="field"><span>Moneda</span><select name="currency">${CURRENCIES.map((c) => `<option${(item.currency || 'USD') === c ? ' selected' : ''}>${c}</option>`).join('')}</select></label>`;
+      case 'sizes':
+        return `<label class="field"><span>Tallas / variantes (separadas por comas)</span><input name="sizes" maxlength="120" placeholder="S, M, L, XL" value="${v('sizes')}"></label>`;
       case 'appKey':
         return `<label class="field"><span>App Key de LevelPlay (privado)</span><input name="appKey" maxlength="64" placeholder="Ej. 1a2b3c4d5" value="${v('appKey')}" spellcheck="false">
           <small>Enlaza el juego con sus ganancias de anuncios. Está en LevelPlay → Apps (o en la pestaña Estadísticas).</small></label>`;
@@ -357,7 +482,7 @@
     // Agrupa algunos campos en dos columnas
     const html = fields.join('')
       .replace(/(<label class="field"><span>Plataforma[\s\S]*?<\/label>)(<label class="field"><span>Estado[\s\S]*?<\/select><\/label>)/, '<div class="form__row">$1$2</div>')
-      .replace(/(<label class="field"><span>Descargas[\s\S]*?<\/label>)(<label class="field"><span>App Key[\s\S]*?<\/label>)/, '<div class="form__row">$1$2</div>');
+      .replace(/(<label class="field"><span>Precio[\s\S]*?<\/label>)(<label class="field"><span>Moneda[\s\S]*?<\/select><\/label>)/, '<div class="form__row">$1$2</div>');
     editor.open(`
       <button class="icon-btn modal__close" type="button" data-close title="Cerrar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
@@ -375,8 +500,51 @@
     bindEditor(item);
   }
 
+  function bindEditorExtras(form) {
+    const check = form.querySelector('#playCheck');
+    if (check) check.addEventListener('click', async () => {
+      const pkg = form.elements.playPackage.value.trim();
+      const out = form.querySelector('#playResult');
+      if (!pkg) { out.textContent = '✖ Escribe primero el paquete'; return; }
+      check.disabled = true;
+      out.textContent = 'CONSULTANDO GOOGLE PLAY…';
+      try {
+        const r = await api(`api/stats.php?action=play_downloads&force=1&package=${encodeURIComponent(pkg)}`);
+        out.innerHTML = `<span style="color:var(--acc)">✓ ${Number(r.total).toLocaleString('es')} descargas totales · +${Number(r.last30).toLocaleString('es')} en 30 días</span>`;
+        beep('coin');
+      } catch (ex) {
+        out.innerHTML = `<span style="color:var(--red)">✖ ${esc(ex.message)}</span>`;
+      }
+      check.disabled = false;
+    });
+    const vf = form.querySelector('#videoFile');
+    if (vf) vf.addEventListener('change', () => {
+      const file = vf.files[0];
+      if (!file) return;
+      if (window.TT.demo) { toast('En la demo usa un enlace de YouTube (los vídeos no caben en el navegador)', 'error'); return; }
+      const bar = form.querySelector('#videoBar');
+      bar.hidden = false;
+      const data = new FormData();
+      data.append('file', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', 'api/upload.php');
+      xhr.setRequestHeader('X-Requested-With', 'TheThing');
+      xhr.upload.addEventListener('progress', (e) => { if (e.lengthComputable) bar.firstElementChild.style.width = `${(e.loaded / e.total) * 100}%`; });
+      xhr.addEventListener('load', () => {
+        let res = {};
+        try { res = JSON.parse(xhr.responseText); } catch { /* ignore */ }
+        bar.hidden = true;
+        if (xhr.status < 300 && res.url) { form.elements.videoUrl.value = res.url; toast('Vídeo subido'); }
+        else toast(res.error || `Error al subir (${xhr.status})`, 'error');
+      });
+      xhr.addEventListener('error', () => { bar.hidden = true; toast('Error de red al subir', 'error'); });
+      xhr.send(data);
+    });
+  }
+
   function bindEditor(item) {
     const form = $('#editorForm');
+    bindEditorExtras(form);
     const zone = $('#dropzone', form);
 
     function setImage(url) {
@@ -457,11 +625,17 @@
         featured: Boolean(form.elements.featured && form.elements.featured.checked),
         downloads: get('downloads'),
         appKey: get('appKey'),
+        playPackage: get('playPackage'),
+        videoUrl: get('videoUrl'),
+        price: get('price'),
+        currency: get('currency'),
+        sizes: get('sizes'),
         notify: Boolean(form.elements.notify && form.elements.notify.checked),
       };
       if (!payload.title) return showErr('El título es obligatorio');
       if (item.type === 'data' && !payload.value) return showErr('El valor es obligatorio');
       if (item.type === 'image' && !payload.image) return showErr('Sube o enlaza una imagen');
+      if (item.type === 'video' && !payload.videoUrl) return showErr('Pega un enlace de YouTube/Vimeo o sube un MP4');
 
       const btn = form.querySelector('[type=submit]');
       btn.disabled = true;
@@ -574,75 +748,127 @@
     panel.innerHTML = `<div class="panel-head"><div><h1>${title}</h1><p class="blink">CARGANDO…</p></div></div>`;
   };
 
+  let statsData = null;
+  let statsForce = false;
+  let statsView = 'all';      // 'all' (general), 'g:<idJuego>' o 'a:<appKey>'
+
   async function renderStats(panel) {
-    panelLoading(panel, '$ ESTADÍSTICAS');
-    let d;
+    panelLoading(panel, '% ESTADÍSTICAS');
     try {
-      d = await api(`api/stats.php?action=overview&days=${statsDays}`);
+      statsData = await api(`api/stats.php?action=overview&days=${statsDays}${statsForce ? '&force=1' : ''}`);
+      statsForce = false;
     } catch (err) {
       if (!handleAuthError(err)) panel.innerHTML = `<div class="empty">✖ ${esc(err.message)}</div>`;
       return;
     }
     if (tab !== 'stats') return;
+    drawStats(panel);
+  }
+
+  function drawStats(panel) {
+    const d = statsData;
     const lp = d.levelplay;
-    const t = lp.totals;
+    const gp = d.googleplay || { configured: false };
     const c = d.community;
+    const kpi = (label, value, note = '') => `<div class="kpi"><span>${label}</span><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`;
+
+    // Vistas disponibles: general, cada juego y las apps de LevelPlay sin enlazar
+    const views = [{ key: 'all', label: 'GENERAL' }]
+      .concat(d.games.map((g) => ({ key: `g:${g.id}`, label: g.title })))
+      .concat((lp.unlinkedApps || []).map((a) => ({ key: `a:${a.appKey}`, label: `${a.appName}${a.platform ? ` (${a.platform})` : ''}` })));
+    if (!views.some((v) => v.key === statsView)) statsView = 'all';
+    const game = statsView.startsWith('g:') ? d.games.find((g) => g.id === statsView.slice(2)) : null;
+    const loneApp = statsView.startsWith('a:') ? (lp.unlinkedApps || []).find((a) => a.appKey === statsView.slice(2)) : null;
+    const app = game ? game.levelplay : loneApp;
+    const isAll = statsView === 'all';
+    const t = isAll ? lp.totals : app;
+    const daily = isAll ? lp.daily : (app && app.daily) || [];
+    const title = isAll ? 'GENERAL · TODAS LAS APPS' : (game ? game.title : loneApp.appName).toUpperCase();
 
     let lpStatus;
     if (!lp.configured) lpStatus = '<div class="banner">LevelPlay no está conectado. Rellena tus claves abajo para ver las ganancias de los anuncios de Unity.</div>';
     else if (lp.error) lpStatus = `<div class="banner banner--error">✖ ${esc(lp.error)}${lp.fetchedAt ? ` · Mostrando datos guardados del ${esc(formatDate(lp.fetchedAt))}` : ''}</div>`;
-    else lpStatus = `<div class="banner banner--ok">✓ LevelPlay conectado${window.TT.demo ? ' (DATOS SIMULADOS DE LA DEMO)' : ''} · ${esc(lp.range ? `${lp.range.start} → ${lp.range.end}` : '')} · actualizado ${esc(new Date(lp.fetchedAt).toLocaleString('es'))}</div>`;
+    else if (lp.demoNote) lpStatus = `<div class="banner">⚠ ${esc(lp.demoNote)}</div>`;
+    else lpStatus = `<div class="banner banner--ok">✓ LevelPlay conectado · ${esc(lp.range ? `${lp.range.start} → ${lp.range.end}` : '')} · actualizado ${esc(new Date(lp.fetchedAt).toLocaleString('es'))}</div>`;
+    if (gp.error) lpStatus += `<div class="banner banner--error">✖ Google Play: ${esc(gp.error)}</div>`;
 
-    const kpi = (label, value, note = '') => `<div class="kpi"><span>${label}</span><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`;
+    let kpis;
+    if (isAll) {
+      kpis = [
+        kpi('Ganancias', t ? fmtUsd(t.revenue) : '—', t ? `USD · ${d.days} días` : 'Conecta LevelPlay'),
+        kpi('Impresiones', t ? fmtInt(t.impressions) : '—', t ? `eCPM ${fmtUsd(t.ecpm)}` : ''),
+        kpi('Usuarios activos', t && t.avgDau ? fmtInt(t.avgDau) : '—', 'Promedio diario (DAU)'),
+        kpi('Descargas', fmtInt(d.totalDownloads), gp.configured ? 'Google Play + otras' : 'Conecta Google Play'),
+        kpi('Jugadores web', fmtInt(c.members), `+${c.newMembers7d} esta semana`),
+        kpi('Valoración', c.avgRating ? `${c.avgRating.toFixed(1)} ★` : '—', `${c.reviews} reseña${c.reviews === 1 ? '' : 's'}`),
+      ];
+    } else {
+      kpis = [
+        kpi('Ganancias', app ? fmtUsd(app.revenue) : '—', app ? `USD · ${d.days} días` : 'Sin App Key de LevelPlay'),
+        kpi('Impresiones', app ? fmtInt(app.impressions) : '—', app ? `eCPM ${fmtUsd(app.ecpm)}` : ''),
+        kpi('Usuarios activos', app && app.avgDau ? fmtInt(app.avgDau) : '—', 'Promedio diario (DAU)'),
+      ];
+      if (game) {
+        kpis.push(
+          kpi('Descargas', fmtInt(game.downloads), game.downloadsPlay != null ? `Play: ${fmtInt(game.downloadsPlay)}${game.downloadsOther ? ` + otras: ${fmtInt(game.downloadsOther)}` : ''}` : (game.playError ? esc(game.playError).slice(0, 80) : 'Añade su paquete de Google Play')),
+          kpi('Nuevas (30 días)', game.installs30 != null ? `+${fmtInt(game.installs30)}` : '—', 'Instalaciones Google Play'),
+          kpi('Valoración', game.rating ? `${game.rating.toFixed(1)} ★` : '—', `${game.reviews} reseña${game.reviews === 1 ? '' : 's'} · ${game.votesBest} votos «mejor»`),
+        );
+      }
+    }
+
+    const totalRow = d.games.length > 1 ? `<tr class="total-row"><td>TOTAL</td><td>${fmtInt(d.totalDownloads)}</td>
+      <td>${lp.totals ? fmtUsd(lp.totals.revenue) : '—'}</td><td>${lp.totals ? fmtInt(lp.totals.impressions) : '—'}</td>
+      <td>${lp.totals ? fmtInt(lp.totals.avgDau) : '—'}</td><td>${c.avgRating ? `${c.avgRating.toFixed(1)} ★` : '—'}</td>
+      <td>${d.games.reduce((n, g) => n + g.votesBest, 0)}</td><td>${d.games.reduce((n, g) => n + g.votesPlayed, 0)}</td></tr>` : '';
 
     panel.innerHTML = `
       <div class="panel-head">
-        <div><h1>$ ESTADÍSTICAS</h1><p>Descargas, ganancias por anuncios (Unity LevelPlay) y actividad de la comunidad.</p></div>
+        <div><h1>% ESTADÍSTICAS</h1><p>Descargas (Google Play), ganancias por anuncios (Unity LevelPlay) y comunidad.</p></div>
         <div class="toolbar" style="margin:0">
           <div class="seg" role="group" aria-label="Periodo">
             ${[7, 30, 90].map((n) => `<button type="button" data-days="${n}" aria-pressed="${n === statsDays}">${n} días</button>`).join('')}
           </div>
-          ${lp.configured ? '<button class="btn btn--sm" type="button" id="lpRefresh">↻ Actualizar</button>' : ''}
+          <button class="btn btn--sm" type="button" id="statsRefresh">↻ Actualizar</button>
         </div>
       </div>
       ${lpStatus}
-      <div class="kpis">
-        ${kpi('Ganancias', t ? fmtUsd(t.revenue) : '—', t ? `USD · últimos ${d.days} días` : 'Conecta LevelPlay')}
-        ${kpi('Impresiones', t ? fmtInt(t.impressions) : '—', t ? `eCPM ${fmtUsd(t.ecpm)}` : '')}
-        ${kpi('Usuarios activos', t && t.avgDau ? fmtInt(t.avgDau) : '—', 'Promedio diario (DAU)')}
-        ${kpi('Descargas', fmtInt(d.totalDownloads), 'Suma de los juegos (manual)')}
-        ${kpi('Jugadores web', fmtInt(c.members), `+${c.newMembers7d} esta semana`)}
-        ${kpi('Valoración', c.avgRating ? `${c.avgRating.toFixed(1)} ★` : '—', `${c.reviews} reseña${c.reviews === 1 ? '' : 's'}`)}
+      <div class="app-tabs" role="tablist" aria-label="Aplicación">
+        ${views.map((v) => `<button type="button" role="tab" data-view="${esc(v.key)}" aria-selected="${v.key === statsView}">${esc(v.label)}</button>`).join('')}
       </div>
+      <p class="view-title">${esc(title)}</p>
+      <div class="kpis">${kpis.join('')}</div>
 
       <div class="box chart-box">
-        <h2>GANANCIAS POR DÍA (USD)</h2>
-        ${revenueChart(lp.daily)}
-        ${lp.daily.length ? `<details class="chart-table"><summary>Ver como tabla</summary>
+        <h2>GANANCIAS POR DÍA (USD) · ${esc(title)}</h2>
+        ${revenueChart(daily)}
+        ${daily.length ? `<details class="chart-table"><summary>Ver como tabla</summary>
           <div class="table-wrap"><table class="data"><thead><tr><th>Fecha</th><th>Ganancias</th><th>Impresiones</th><th>Usuarios activos</th></tr></thead>
-          <tbody>${lp.daily.map((r) => `<tr><td>${esc(r.date)}</td><td>${fmtUsd(r.revenue)}</td><td>${fmtInt(r.impressions)}</td><td>${fmtInt(r.activeUsers)}</td></tr>`).join('')}</tbody></table></div>
+          <tbody>${daily.map((r) => `<tr><td>${esc(r.date)}</td><td>${fmtUsd(r.revenue)}</td><td>${fmtInt(r.impressions)}</td><td>${fmtInt(r.activeUsers)}</td></tr>`).join('')}</tbody></table></div>
         </details>` : ''}
       </div>
 
       <div class="box">
-        <h2>POR JUEGO</h2>
+        <h2>TODAS LAS APLICACIONES</h2>
         ${d.games.length ? `<div class="table-wrap"><table class="data">
           <thead><tr><th>Juego</th><th>Descargas</th><th>Ganancias</th><th>Impresiones</th><th>DAU</th><th>Valoración</th><th>Votos mejor</th><th>Votos más jugado</th></tr></thead>
-          <tbody>${d.games.map((g) => `<tr>
-            <td><button class="linkish" type="button" data-edit-game="${esc(g.id)}">${esc(g.title)}</button>${g.appKey ? '' : '<br><small class="muted">Sin App Key de LevelPlay</small>'}</td>
-            <td>${fmtInt(g.downloads)}</td>
+          <tbody>${d.games.map((g) => `<tr class="${statsView === `g:${g.id}` ? 'is-selected' : ''}">
+            <td><button class="linkish" type="button" data-view="g:${esc(g.id)}">${esc(g.title)}</button>
+              ${g.appKey ? '' : '<br><small class="muted">Sin App Key de LevelPlay</small>'}
+              ${g.playPackage ? (g.playError ? `<br><small style="color:var(--red)">Play: ${esc(g.playError).slice(0, 90)}</small>` : '') : '<br><small class="muted">Sin paquete de Google Play</small>'}</td>
+            <td>${fmtInt(g.downloads)}${g.installs30 != null ? `<br><small class="muted">+${fmtInt(g.installs30)} / 30 d</small>` : ''}</td>
             <td>${g.levelplay ? fmtUsd(g.levelplay.revenue) : '—'}</td>
             <td>${g.levelplay ? fmtInt(g.levelplay.impressions) : '—'}</td>
             <td>${g.levelplay ? fmtInt(g.levelplay.avgDau) : '—'}</td>
             <td>${g.rating ? `${g.rating.toFixed(1)} ★ (${g.reviews})` : '—'}</td>
             <td>${g.votesBest}</td><td>${g.votesPlayed}</td>
-          </tr>`).join('')}</tbody></table></div>` : '<div class="empty">AÚN NO HAY JUEGOS PUBLICADOS</div>'}
-        ${lp.unlinkedApps.length ? `<p class="form__hint" style="margin-top:16px">Apps de LevelPlay sin enlazar (copia su App Key en el juego correspondiente):</p>
+          </tr>`).join('')}${totalRow}</tbody></table></div>` : '<div class="empty">AÚN NO HAY JUEGOS PUBLICADOS</div>'}
+        ${(lp.unlinkedApps || []).length ? `<p class="form__hint" style="margin-top:16px">Apps de LevelPlay sin enlazar (copia su App Key en el juego correspondiente):</p>
           <ul class="keys">${lp.unlinkedApps.map((a) => `<li><span>${esc(a.appName)} ${a.platform ? `(${esc(a.platform)})` : ''} · ${fmtUsd(a.revenue)}</span><code>${esc(a.appKey)}</code></li>`).join('')}</ul>` : ''}
       </div>
 
       <form class="box form" id="lpForm" novalidate>
-        <h2>CONEXIÓN CON UNITY LEVELPLAY</h2>
+        <h2>CONEXIÓN CON UNITY LEVELPLAY (GANANCIAS)</h2>
         <p class="form__hint">En <b>LevelPlay → (tu perfil) → My Account → API</b> copia la <b>Secret Key</b> y el <b>Refresh Token</b>. Se guardan en el servidor y nunca se muestran en la web.</p>
         <div class="form__row">
           <label class="field"><span>SECRET KEY</span><input name="secretKey" type="password" autocomplete="off" spellcheck="false" placeholder="${lp.configured ? '•••••••• (guardada)' : ''}"></label>
@@ -650,10 +876,28 @@
         </div>
         <p class="form__error" id="lpError" role="alert"></p>
         <div class="form__actions">
-          ${lp.configured ? '<button class="btn btn--danger btn--sm" type="button" id="lpClear">Desconectar</button>' : ''}
+          ${lp.configured ? '<button class="btn btn--sm" type="button" id="lpDebug">Ver respuesta de LevelPlay</button><button class="btn btn--danger btn--sm" type="button" id="lpClear">Desconectar</button>' : ''}
           <button class="btn btn--solid" type="submit">▶ Guardar y probar</button>
         </div>
-        <p class="form__hint">Las <b>descargas</b> no las da LevelPlay: escríbelas en cada juego (Juegos / apps → Editar) copiándolas de Google Play Console o App Store Connect.</p>
+        <pre class="raw" id="lpRaw" hidden></pre>
+      </form>
+
+      <form class="box form" id="gpForm" novalidate>
+        <h2>CONEXIÓN CON GOOGLE PLAY (DESCARGAS)</h2>
+        <p class="form__hint">${gp.configured ? '<span style="color:var(--acc)">✓ Conectado.</span> ' : ''}Las descargas se leen de los informes oficiales de Play Console. Pasos (una sola vez):</p>
+        <ol class="steps">
+          <li>En <b>Google Cloud Console</b> crea un proyecto → <b>IAM → Cuentas de servicio</b> → crea una y en <b>Claves</b> descarga una clave <b>JSON</b>.</li>
+          <li>En <b>Play Console → Usuarios y permisos</b> invita el correo de esa cuenta de servicio con el permiso <b>«Ver información de la app y descargar informes masivos»</b> (tarda hasta 24 h).</li>
+          <li>En <b>Play Console → Descargar informes → Estadísticas</b> pulsa <b>«Copiar URI de Cloud Storage»</b> (empieza por <code>gs://pubsite_prod_rev_…</code>).</li>
+          <li>Pega aquí ambos datos y, en cada juego, su <b>paquete de Google Play</b>.</li>
+        </ol>
+        <label class="field"><span>JSON DE LA CUENTA DE SERVICIO</span><textarea name="serviceAccount" spellcheck="false" style="min-height:110px;font-size:12px" placeholder="${gp.configured ? '•••• guardado (pega uno nuevo para reemplazarlo)' : '{ &quot;type&quot;: &quot;service_account&quot;, … }'}"></textarea></label>
+        <label class="field"><span>URI DE CLOUD STORAGE (BUCKET)</span><input name="bucket" spellcheck="false" placeholder="${gp.configured ? '•••• guardado' : 'gs://pubsite_prod_rev_0123456789'}"></label>
+        <p class="form__error" id="gpError" role="alert"></p>
+        <div class="form__actions">
+          ${gp.configured ? '<button class="btn btn--danger btn--sm" type="button" id="gpClear">Desconectar</button>' : ''}
+          <button class="btn btn--solid" type="submit">▶ Guardar y probar</button>
+        </div>
       </form>`;
     bindStats(panel);
   }
@@ -707,9 +951,54 @@
       beep('select');
       renderStats(panel);
     }));
-    panel.querySelectorAll('[data-edit-game]').forEach((b) => b.addEventListener('click', () => {
-      openEditor(null, content.find((i) => i.id === b.dataset.editGame));
+    panel.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
+      statsView = b.dataset.view;
+      beep('blip');
+      drawStats(panel);
+      const tabEl = panel.querySelector(`.app-tabs [data-view="${CSS.escape(statsView)}"]`);
+      if (tabEl) tabEl.scrollIntoView({ block: 'nearest', inline: 'center' });
     }));
+
+    const gpForm = $('#gpForm');
+    gpForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = $('#gpError');
+      err.textContent = '';
+      const btn = gpForm.querySelector('[type=submit]');
+      btn.disabled = true;
+      btn.textContent = 'PROBANDO…';
+      try {
+        await api('api/stats.php?action=googleplay_save', { json: { serviceAccount: gpForm.serviceAccount.value.trim(), bucket: gpForm.bucket.value.trim() } });
+        toast('¡Google Play conectado!');
+        statsForce = true;
+        renderStats(panel);
+      } catch (ex) {
+        if (!handleAuthError(ex)) { err.textContent = `✖ ${ex.message}`; beep('error'); }
+        btn.disabled = false;
+        btn.textContent = '▶ Guardar y probar';
+      }
+    });
+    const gpClear = $('#gpClear');
+    if (gpClear) gpClear.addEventListener('click', async () => {
+      if (!window.confirm('¿Desconectar Google Play y borrar la cuenta de servicio guardada?')) return;
+      try {
+        await api('api/stats.php?action=googleplay_clear', { method: 'POST' });
+        toast('Google Play desconectado');
+        renderStats(panel);
+      } catch (ex) { if (!handleAuthError(ex)) toast(ex.message, 'error'); }
+    });
+    const lpDebug = $('#lpDebug');
+    if (lpDebug) lpDebug.addEventListener('click', async () => {
+      const pre = $('#lpRaw');
+      pre.hidden = false;
+      pre.textContent = 'CONSULTANDO LEVELPLAY…';
+      try {
+        const r = await api('api/stats.php?action=levelplay_debug');
+        pre.textContent = `Filas recibidas (últimos 3 días): ${r.rows}\n\n${JSON.stringify(r.sample, null, 2)}`;
+      } catch (ex) {
+        pre.textContent = `✖ ${ex.message}`;
+      }
+    });
 
     // Tooltip de la gráfica
     const chart = panel.querySelector('.chart');
@@ -740,15 +1029,19 @@
       });
     }
 
-    const refresh = $('#lpRefresh');
-    if (refresh) refresh.addEventListener('click', async () => {
+    const refresh = $('#statsRefresh');
+    refresh.addEventListener('click', async () => {
       refresh.disabled = true;
-      try {
-        await api(`api/stats.php?action=levelplay_refresh&days=${statsDays}`, { method: 'POST' });
-        toast('Datos de LevelPlay actualizados');
-      } catch (err) {
-        if (!handleAuthError(err)) toast(err.message, 'error');
+      if (statsData.levelplay.configured) {
+        try {
+          await api(`api/stats.php?action=levelplay_refresh&days=${statsDays}`, { method: 'POST' });
+        } catch (err) {
+          if (handleAuthError(err)) return;
+          toast(err.message, 'error');
+        }
       }
+      statsForce = true;
+      toast('Datos actualizados');
       renderStats(panel);
     });
 

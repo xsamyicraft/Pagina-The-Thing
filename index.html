@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Permanent+Marker&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body class="fx-on">
@@ -42,9 +42,10 @@
       </a>
       <ul class="menu" id="menu">
         <li><a href="#juegos">JUEGOS</a></li>
-        <li><a href="#votos">VOTOS</a></li>
+        <li><a href="#videos">VÍDEOS</a></li>
         <li><a href="#noticias">NOTICIAS</a></li>
-        <li><a href="#datos">DATOS</a></li>
+        <li><a href="#tienda">TIENDA</a></li>
+        <li><a href="#votos">VOTOS</a></li>
         <li><a href="#galeria">GALERÍA</a></li>
         <li><a href="#estudio">ESTUDIO</a></li>
         <li class="menu__extras">
@@ -144,8 +145,50 @@
       </div>
     </section>
 
+    <!-- VÍDEOS: cassettes + TV vieja -->
+    <section class="section section--alt" id="videos">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Videoclub</p>
+            <h2 class="section-title">Vídeos</h2>
+            <p class="section-sub">Elige un cassette y mételo en el vídeo. Tráilers, diarios de desarrollo y algo más que no deberías ver de noche.</p>
+          </div>
+        </div>
+        <div class="vhs reveal">
+          <div class="tvset">
+            <div class="tv" id="tv">
+              <div class="tv__antenna" aria-hidden="true"><i></i><i></i></div>
+              <div class="tv__body">
+                <div class="tv__screen">
+                  <div class="tv__glass" id="tvGlass">
+                    <div class="tv__static" id="tvStatic" aria-hidden="true"></div>
+                    <p class="tv__osd" id="tvOsd">SIN SEÑAL<br><small>INSERTA UN CASSETTE</small></p>
+                  </div>
+                </div>
+                <div class="tv__panel" aria-hidden="true">
+                  <span class="tv__brand">THE&nbsp;THING</span>
+                  <span class="tv__knob"></span>
+                  <span class="tv__knob tv__knob--sm"></span>
+                  <span class="tv__grille"></span>
+                  <span class="tv__led" id="tvLed"></span>
+                </div>
+              </div>
+            </div>
+            <div class="vcr">
+              <div class="vcr__slot" id="vcrSlot"><span class="vcr__flap"></span></div>
+              <div class="vcr__display" id="vcrDisplay">--:--</div>
+              <button class="vcr__btn" type="button" id="vcrEject" title="Expulsar cassette">⏏ EJECT</button>
+            </div>
+            <p class="now-playing" id="nowPlaying" aria-live="polite"></p>
+          </div>
+          <div class="tapes" id="tapes" aria-label="Cassettes"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- VOTACIONES -->
-    <section class="section section--alt" id="votos">
+    <section class="section" id="votos">
       <div class="container">
         <div class="section-head reveal">
           <div>
@@ -159,7 +202,7 @@
     </section>
 
     <!-- NOTICIAS -->
-    <section class="section" id="noticias">
+    <section class="section section--alt" id="noticias">
       <div class="container">
         <div class="section-head reveal">
           <div>
@@ -170,6 +213,20 @@
           <button class="btn btn--sm" type="button" id="moreNews" hidden>Cargar más ▼</button>
         </div>
         <div class="news" id="news"></div>
+      </div>
+    </section>
+
+    <!-- TIENDA -->
+    <section class="section" id="tienda">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Merch oficial</p>
+            <h2 class="section-title">Tienda</h2>
+            <p class="section-sub">Lleva a la cosa contigo. Camisetas, tazas y otros objetos malditos.</p>
+          </div>
+        </div>
+        <div class="shop" id="shop"></div>
       </div>
     </section>
 

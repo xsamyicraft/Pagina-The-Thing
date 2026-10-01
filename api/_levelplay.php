@@ -116,10 +116,14 @@ function lp_aggregate(array $rows): array
         if ($appKey !== '') {
             $apps[$appKey] = $apps[$appKey] ?? [
                 'appKey' => $appKey, 'appName' => (string) ($row['appName'] ?? $appKey), 'platform' => (string) ($row['platform'] ?? ''),
-                'revenue' => 0.0, 'impressions' => 0, 'activeUsers' => 0, 'days' => 0,
+                'revenue' => 0.0, 'impressions' => 0, 'activeUsers' => 0, 'days' => 0, 'daily' => [],
             ];
             foreach ($m as $k => $v) $apps[$appKey][$k] += $v;
             $apps[$appKey]['days']++;
+            if ($date !== '') {
+                $apps[$appKey]['daily'][$date] = $apps[$appKey]['daily'][$date] ?? ['date' => $date, 'revenue' => 0.0, 'impressions' => 0, 'activeUsers' => 0];
+                foreach ($m as $k => $v) $apps[$appKey]['daily'][$date][$k] += $v;
+            }
         }
         foreach ($m as $k => $v) $totals[$k] += $v;
     }
@@ -130,6 +134,13 @@ function lp_aggregate(array $rows): array
         $a['revenue'] = round($a['revenue'], 2);
         $a['avgDau'] = $a['days'] ? (int) round($a['activeUsers'] / $a['days']) : 0;
         $a['ecpm'] = $a['impressions'] ? round($a['revenue'] / $a['impressions'] * 1000, 2) : 0;
+        ksort($a['daily']);
+        $a['daily'] = array_values(array_map(function ($d) {
+            $d['revenue'] = round($d['revenue'], 2);
+            return $d;
+        }, $a['daily']));
+        $a['days'] = count($a['daily']) ?: $a['days'];
+        $a['avgDau'] = $a['days'] ? (int) round($a['activeUsers'] / $a['days']) : 0;
     }
     unset($a);
     $totals['revenue'] = round($totals['revenue'], 2);
@@ -188,4 +199,16 @@ function levelplay_report(int $days, bool $force = false): array
         $msg = $e->getMessage() === 'TOKEN_EXPIRED' ? 'LevelPlay rechazó el token. Revisa las credenciales.' : $e->getMessage();
         return ['configured' => true, 'data' => $cache['data'] ?? null, 'error' => $msg, 'fetchedAt' => $cache['fetchedAt'] ?? null];
     }
+}
+
+/** Diagnóstico: devuelve las primeras filas tal cual las envía LevelPlay. */
+function levelplay_raw_sample(): array
+{
+    $cfg = with_db(function (array &$db) {
+        return $db['levelplay'];
+    });
+    if (empty($cfg['secretKey']) || empty($cfg['refreshToken'])) throw new RuntimeException('LevelPlay no está conectado');
+    $token = lp_fetch_token($cfg['secretKey'], $cfg['refreshToken']);
+    $rows = lp_fetch_stats($token, gmdate('Y-m-d', time() - 2 * 86400), gmdate('Y-m-d'), LP_METRICS);
+    return ['rows' => count($rows), 'sample' => array_slice($rows, 0, 4)];
 }

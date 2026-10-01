@@ -10,5 +10,5 @@ Options -Indexes -ExecCGI
 </FilesMatch>
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
-  Header set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'"
+  Header set Content-Security-Policy "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'"
 </IfModule>

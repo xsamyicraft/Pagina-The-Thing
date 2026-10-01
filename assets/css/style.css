@@ -323,7 +323,7 @@ body.chaos main { animation: chaos .25s infinite steps(2); }
 .nav__tools { display: flex; align-items: center; gap: 8px; }
 .nav__toggle { display: none; }
 
-@media (max-width: 960px) {
+@media (max-width: 1180px) {
   .nav__toggle { display: inline-grid; }
   .menu {
     position: fixed; inset: 0; z-index: -1; flex-direction: column; justify-content: center; gap: 8px;
@@ -546,7 +546,7 @@ body.chaos main { animation: chaos .25s infinite steps(2); }
    Juegos / aplicaciones (cartuchos)
    -------------------------------------------------------------------------- */
 
-.games { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 28px; }
+.games { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
 
 .cart {
   position: relative; display: flex; flex-direction: column; text-align: left; padding: 0; border: 0;
@@ -555,21 +555,22 @@ body.chaos main { animation: chaos .25s infinite steps(2); }
   will-change: transform;
 }
 .cart:hover { box-shadow: inset 0 0 0 2px var(--text); outline: 2px solid var(--line-acc); outline-offset: 5px; }
-.cart--featured { grid-column: 1 / -1; display: grid; grid-template-columns: 1.3fr 1fr; }
-.cart__media { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #000; }
-.cart--featured .cart__media { aspect-ratio: auto; min-height: 320px; }
+.cart--featured { grid-column: span 2; display: grid; grid-template-columns: 1.1fr 1fr; }
+.cart__media { position: relative; aspect-ratio: 4 / 3; overflow: hidden; background: #000; }
+.cart--featured .cart__media { aspect-ratio: auto; min-height: 200px; }
 .cart__media img { width: 100%; height: 100%; object-fit: cover; transition: transform .8s var(--ease-out), filter .5s; filter: grayscale(.25) contrast(1.05); }
 .cart:hover .cart__media img { transform: scale(1.06); filter: none; }
 .cart__media::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, .25) 3px 4px);
 }
-.cart__body { display: flex; flex-direction: column; gap: 10px; padding: 22px; flex: 1; }
+.cart__body { display: flex; flex-direction: column; gap: 8px; padding: 14px; flex: 1; }
 .cart__meta { display: flex; flex-wrap: wrap; gap: 8px; }
-.cart__title { font-family: var(--pixel); font-size: 15px; line-height: 1.4; margin: 0; }
-.cart--featured .cart__title { font-size: clamp(16px, 2.4vw, 24px); }
-.cart__summary { margin: 0; color: var(--muted); font-size: 14px; }
-.cart__cta { margin-top: auto; padding-top: 8px; font-family: var(--term); font-size: 22px; color: var(--acc); }
+.cart__title { font-family: var(--pixel); font-size: 11px; line-height: 1.5; margin: 0; }
+.cart--featured .cart__title { font-size: 14px; }
+.cart__summary { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cart__cta { margin-top: auto; padding-top: 4px; font-family: var(--term); font-size: 19px; color: var(--acc); }
+.cart .tag { font-size: 14px; padding: 2px 6px; }
 .cart__cta::after { content: ' ▶'; display: inline-block; transition: transform .3s var(--ease-out); }
 .cart:hover .cart__cta::after { transform: translateX(6px); }
 
@@ -582,8 +583,9 @@ body.chaos main { animation: chaos .25s infinite steps(2); }
 .tag--hot { color: var(--acc); box-shadow: none; border: 3px double var(--line-acc); padding: 1px 6px; }
 
 @media (max-width: 760px) {
+  .games { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
   .cart--featured { grid-template-columns: 1fr; }
-  .cart--featured .cart__media { min-height: 0; aspect-ratio: 16 / 10; }
+  .cart--featured .cart__media { min-height: 0; aspect-ratio: 4 / 3; }
 }
 
 /* Marcador de posición cuando no hay imagen */
@@ -811,7 +813,7 @@ body.chaos main { animation: chaos .25s infinite steps(2); }
   .menu a { font-size: 19px; padding: 8px 6px 8px 18px; }
   .acct-btn .acct-label { max-width: 9ch; overflow: hidden; text-overflow: ellipsis; }
 }
-@media (max-width: 960px) {
+@media (max-width: 1180px) {
   .nav__tools .fx-tool { display: none; }
   .menu__extras { display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
 }
@@ -885,7 +887,7 @@ button.notif:hover { box-shadow: inset 0 0 0 2px var(--line-acc); transform: tra
 
 .stars { font-family: var(--term); letter-spacing: 2px; color: var(--amber); white-space: nowrap; }
 .stars .off { color: #3a3a42; }
-.cart__stars { display: flex; align-items: center; gap: 8px; font-family: var(--term); font-size: 19px; color: var(--muted); }
+.cart__stars { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-family: var(--term); font-size: 16px; color: var(--muted); }
 
 .reviews { border-top: 2px dashed var(--line); padding: clamp(20px, 4vw, 44px); padding-top: 28px; }
 .reviews__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
@@ -912,8 +914,8 @@ button.notif:hover { box-shadow: inset 0 0 0 2px var(--line-acc); transform: tra
   display: inline-block; padding: 2px 10px; background: rgba(var(--acc-rgb), .12);
   box-shadow: inset 0 0 0 1px rgba(var(--acc-rgb), .6); letter-spacing: .15em;
 }
-.code-card__who { margin: 10px 0 4px; color: #9fd8a8; }
-.code-card__who span { color: var(--muted); }
+.code-card__who { margin: 10px 0 4px; color: var(--muted); }
+.code-card__who .player { color: var(--pc, var(--cyan)); font-family: var(--pixel); font-size: 14px; letter-spacing: .04em; text-shadow: 0 0 10px currentColor; }
 .code-card__text { margin: 0; color: var(--text); font-family: var(--mono); font-size: 15px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
 .code-card__text::before { content: '> '; color: var(--acc); font-family: var(--term); font-size: 20px; }
 .code-card__del { position: relative; z-index: 2; margin-top: 10px; background: none; border: 0; padding: 0; font-family: var(--term); font-size: 18px; color: var(--muted); text-decoration: underline; }
@@ -969,6 +971,182 @@ button.notif:hover { box-shadow: inset 0 0 0 2px var(--line-acc); transform: tra
 }
 
 .join { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+
+/* --------------------------------------------------------------------------
+   Vídeos: televisor viejo + vídeo VHS + cassettes
+   -------------------------------------------------------------------------- */
+
+.vhs { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(250px, 1fr); gap: clamp(28px, 4vw, 56px); align-items: start; }
+.tvset { position: relative; }
+.tv { position: relative; padding-top: 64px; }
+.tv__antenna { position: absolute; top: 0; left: 50%; width: 140px; height: 70px; transform: translateX(-50%); }
+.tv__antenna::after {                     /* base */
+  content: ''; position: absolute; left: 50%; bottom: 0; width: 64px; height: 18px; transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 100%, #2a2a2e 60%, #111 61%); border-radius: 50% 50% 0 0;
+}
+.tv__antenna i {
+  position: absolute; bottom: 10px; left: 50%; width: 3px; height: 78px; background: linear-gradient(#ddd, #777);
+  transform-origin: bottom center; border-radius: 2px;
+}
+.tv__antenna i::before { content: ''; position: absolute; top: -5px; left: -3px; width: 9px; height: 9px; border-radius: 50%; background: #ccc; }
+.tv__antenna i:first-child { transform: rotate(-32deg); animation: antenna 6s ease-in-out infinite; }
+.tv__antenna i:last-child { transform: rotate(28deg); animation: antenna 7s ease-in-out -2s infinite reverse; }
+@keyframes antenna { 50% { rotate: 4deg; } }
+
+.tv__body {
+  position: relative; display: grid; grid-template-columns: 1fr 96px; gap: 18px; padding: 20px; border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .08), transparent 30%, rgba(0, 0, 0, .35)),
+    repeating-linear-gradient(92deg, #4a2f1e 0 7px, #3f2718 7px 10px, #523523 10px 16px, #46301f 16px 21px);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .9), inset 0 2px 0 rgba(255, 255, 255, .12), inset 0 -4px 0 rgba(0, 0, 0, .4);
+}
+.tv__screen { padding: 14px; border-radius: 28px; background: linear-gradient(145deg, #2b2b2f, #0e0e10); box-shadow: inset 0 4px 12px rgba(0, 0, 0, .9), 0 1px 0 rgba(255, 255, 255, .08); }
+.tv__glass {
+  position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 18% / 14%; background: #000;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, .95);
+}
+.tv__glass iframe,
+.tv__glass video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; object-fit: contain; }
+.tv__glass::after {                        /* líneas, viñeta y reflejo del cristal */
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 3; border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, .12), transparent 40%),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, .7) 100%),
+    repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, .28) 3px 4px);
+}
+.tv__static {
+  position: absolute; inset: -40%; z-index: 2; opacity: .9; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: noise .35s steps(4) infinite; transition: opacity .4s;
+}
+.tv.playing .tv__static { opacity: 0; }
+.tv.switching .tv__static { opacity: .95; transition: none; }
+.tv__osd {
+  position: absolute; inset: 0; z-index: 4; display: grid; place-content: center; margin: 0; text-align: center;
+  font-family: var(--term); font-size: clamp(24px, 3vw, 38px); line-height: 1.1; color: var(--acc); text-shadow: 0 0 12px rgba(var(--acc-rgb), .7);
+  pointer-events: none;
+}
+.tv__osd small { font-size: .55em; color: #cfe; animation: blink 1.2s steps(1) infinite; }
+.tv.playing .tv__osd { display: none; }
+.tv.on .tv__glass { animation: tv-on .6s var(--ease-crt); }
+@keyframes tv-on { 0% { filter: brightness(4); transform: scale(1, .02); } 40% { transform: scale(1, .02); } 100% { filter: none; transform: none; } }
+
+.tv__panel { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 10px 0; }
+.tv__brand { font-family: var(--pixel); font-size: 8px; color: #e9d9b6; letter-spacing: .1em; text-align: center; line-height: 1.6; }
+.tv__knob {
+  position: relative; width: 52px; height: 52px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #777, #222 70%); box-shadow: 0 4px 8px rgba(0, 0, 0, .6), inset 0 -2px 4px rgba(0, 0, 0, .6);
+  transition: transform .6s var(--ease-out);
+}
+.tv__knob::after { content: ''; position: absolute; top: 6px; left: 50%; width: 4px; height: 14px; margin-left: -2px; background: #ddd; border-radius: 2px; }
+.tv__knob--sm { width: 38px; height: 38px; }
+.tv.playing .tv__knob { transform: rotate(130deg); }
+.tv__grille { width: 70px; flex: 1; min-height: 60px; border-radius: 8px; background: repeating-linear-gradient(to bottom, #1a1208 0 3px, #6b5238 3px 6px); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .7); }
+.tv__led { width: 10px; height: 10px; border-radius: 50%; background: #400; box-shadow: 0 0 0 2px #111; }
+.tv.playing .tv__led { background: var(--red); box-shadow: 0 0 0 2px #111, 0 0 10px var(--red); }
+
+.vcr {
+  position: relative; display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center;
+  width: 88%; margin: 14px auto 0; padding: 14px 18px; border-radius: 6px;
+  background: linear-gradient(#2c2c31, #17171a); box-shadow: 0 16px 30px -12px rgba(0, 0, 0, .9), inset 0 1px 0 rgba(255, 255, 255, .1);
+}
+.vcr__slot { position: relative; height: 22px; background: #050506; border-radius: 3px; box-shadow: inset 0 3px 6px rgba(0, 0, 0, .9); overflow: hidden; }
+.vcr__flap { position: absolute; inset: 3px 6px; background: linear-gradient(#26262b, #121214); border-radius: 2px; transition: transform .3s var(--ease-out); transform-origin: top; }
+.vcr.loading .vcr__flap { transform: perspective(60px) rotateX(70deg); }
+.vcr__display { min-width: 104px; padding: 4px 10px; background: #031007; font-family: var(--term); font-size: 22px; color: var(--acc); text-shadow: 0 0 8px rgba(var(--acc-rgb), .8); text-align: center; box-shadow: inset 0 0 0 2px #0b2a13; }
+.vcr__btn {
+  padding: 8px 12px; border: 0; border-radius: 3px; background: linear-gradient(#4a4a50, #2a2a2e); color: #ddd;
+  font-family: var(--pixel); font-size: 8px; box-shadow: 0 3px 0 #111; transition: transform .1s, box-shadow .1s;
+}
+.vcr__btn:hover { outline: 2px solid var(--line-acc); outline-offset: 2px; }
+.vcr__btn:active { transform: translateY(3px); box-shadow: 0 0 0 #111; }
+.now-playing { margin: 18px 0 0; text-align: center; font-family: var(--term); font-size: 21px; color: var(--muted); min-height: 1.4em; }
+.now-playing b { color: var(--acc); font-weight: 400; }
+
+/* Cassettes VHS */
+.tapes { display: grid; gap: 18px; max-height: 640px; overflow-y: auto; padding: 8px 10px 8px 4px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.cassette {
+  position: relative; display: block; width: 100%; aspect-ratio: 1.85; padding: 9% 7% 7%; border: 0; text-align: left;
+  border-radius: 6px; color: #111;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .07), transparent 20%),
+    radial-gradient(circle at 6% 92%, #000 0 3px, transparent 4px), radial-gradient(circle at 94% 92%, #000 0 3px, transparent 4px),
+    #18181b;
+  box-shadow: 0 10px 22px -10px rgba(0, 0, 0, .9), inset 0 0 0 2px #2a2a30;
+  transform: rotate(var(--r, 0deg)); transition: transform .35s var(--ease-out), box-shadow .35s, opacity .3s;
+  animation: panel-in .5s var(--ease-out) both; animation-delay: var(--d, 0s);
+}
+.cassette:hover { transform: translateX(-6px) rotate(0deg) scale(1.02); box-shadow: 0 16px 30px -10px rgba(0, 0, 0, .9), inset 0 0 0 2px #2a2a30; outline: 2px solid var(--line-acc); outline-offset: 4px; }
+.cassette__label {
+  position: absolute; left: 7%; right: 7%; top: 9%; height: 42%; padding: 6px 10px; overflow: hidden;
+  background: linear-gradient(180deg, #f3ecda 0 72%, var(--red) 72% 80%, #f3ecda 80% 84%, #111 84% 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15);
+}
+.cassette__label b { display: block; font-family: 'Permanent Marker', var(--term), cursive; font-size: clamp(14px, 1.5vw, 19px); font-weight: 400; line-height: 1.05; color: #1b1b1b; transform: rotate(-1.5deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cassette__label small { display: block; margin-top: 2px; font-family: var(--term); font-size: 14px; color: #555; }
+.cassette__window {
+  position: absolute; left: 22%; right: 22%; bottom: 12%; height: 30%; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 6%; border-radius: 4px; background: rgba(40, 40, 46, .85); box-shadow: inset 0 0 0 2px #0b0b0d;
+}
+.cassette__window::before {                    /* cinta entre los dos carretes */
+  content: ''; position: absolute; left: 22%; right: 22%; top: 50%; height: 30%; transform: translateY(-50%); background: #3b2414;
+}
+.reel {
+  position: relative; z-index: 1; width: 34%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, #ddd 0 18%, transparent 19%), conic-gradient(from 0deg, #eee 0 10%, #444 10% 33%, #eee 33% 43%, #444 43% 66%, #eee 66% 76%, #444 76% 100%);
+  box-shadow: 0 0 0 4px #3b2414;
+}
+.cassette:hover .reel,
+.cassette.playing .reel { animation: reel 1.2s linear infinite; }
+@keyframes reel { to { transform: rotate(360deg); } }
+.cassette.playing { opacity: .45; }
+.cassette.playing::after {
+  content: 'EN EL VÍDEO'; position: absolute; right: 8px; bottom: 6px; font-family: var(--pixel); font-size: 7px; color: var(--acc);
+}
+.cassette-fly { position: fixed; z-index: 9300; pointer-events: none; margin: 0; }
+
+@media (max-width: 860px) {
+  .vhs { grid-template-columns: 1fr; }
+  .tv__body { grid-template-columns: 1fr; padding: 14px; border-radius: 20px; }
+  .tv__panel { flex-direction: row; justify-content: center; padding: 0; }
+  .tv__grille { min-height: 0; height: 36px; flex: 0 0 90px; }
+  .tv__knob { width: 38px; height: 38px; }
+  .vcr { width: 100%; grid-template-columns: 1fr auto; }
+  .vcr__display { grid-row: 2; }
+  .tapes { grid-auto-flow: column; grid-auto-columns: 72%; max-height: none; overflow-x: auto; overflow-y: hidden; padding-bottom: 16px; scroll-snap-type: x mandatory; }
+  .cassette { scroll-snap-align: start; }
+}
+
+/* --------------------------------------------------------------------------
+   Tienda de merch
+   -------------------------------------------------------------------------- */
+
+.shop { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; }
+.product {
+  position: relative; display: flex; flex-direction: column; padding: 0; border: 0; text-align: left; color: var(--text);
+  background: var(--panel); box-shadow: inset 0 0 0 2px var(--line); transition: transform .35s var(--ease-out), box-shadow .35s;
+}
+.product:hover { transform: translateY(-5px); box-shadow: inset 0 0 0 2px var(--text); outline: 2px solid var(--line-acc); outline-offset: 5px; }
+.product__media { position: relative; aspect-ratio: 1; overflow: hidden; background: #0d0d0f; }
+.product__media img { width: 100%; height: 100%; object-fit: cover; transition: transform .8s var(--ease-out); }
+.product:hover .product__media img { transform: scale(1.06) rotate(-1deg); }
+.price-tag {
+  position: absolute; top: 12px; right: 12px; z-index: 2; padding: 6px 10px; background: #000; transform: rotate(4deg);
+  font-family: var(--pixel); font-size: 12px; color: var(--acc); border: 4px double var(--line-acc);
+  transition: transform .3s var(--ease-out);
+}
+.product:hover .price-tag { transform: rotate(-3deg) scale(1.08); }
+.product__body { display: flex; flex-direction: column; gap: 8px; padding: 16px; flex: 1; }
+.product__title { font-family: var(--pixel); font-size: 11px; line-height: 1.5; margin: 0; }
+.product__summary { margin: 0; font-size: 13px; color: var(--muted); }
+.sizes { display: flex; flex-wrap: wrap; gap: 6px; }
+.sizes span { padding: 1px 7px; font-family: var(--term); font-size: 16px; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.product__cta { margin-top: auto; padding-top: 6px; font-family: var(--term); font-size: 19px; color: var(--acc); }
+.product.soldout .product__media img { filter: grayscale(1) brightness(.6); }
+.product.soldout .price-tag { text-decoration: line-through; }
+.size-pick { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.size-pick button { min-width: 46px; padding: 8px 10px; border: 0; background: #070708; color: var(--text); font-family: var(--term); font-size: 19px; box-shadow: inset 0 0 0 2px var(--line); }
+.size-pick button[aria-pressed='true'] { color: var(--acc); box-shadow: inset 0 0 0 2px var(--line-acc); }
 
 /* Aviso del modo demo (sin servidor) */
 .demo-banner {

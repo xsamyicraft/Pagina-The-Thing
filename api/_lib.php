@@ -15,10 +15,10 @@ const DATA_DIR = ROOT_DIR . '/data';
 const UPLOAD_DIR = ROOT_DIR . '/uploads';
 const DB_FILE = DATA_DIR . '/db.php';
 const DB_GUARD = "<?php http_response_code(404); exit; ?>\n";
-const CONTENT_TYPES = ['app', 'news', 'data', 'image'];
+const CONTENT_TYPES = ['app', 'news', 'data', 'image', 'video', 'product'];
 const VOTE_CATEGORIES = ['best', 'played'];
 // Campos que solo ve el administrador (no se publican en la web)
-const PRIVATE_FIELDS = ['appKey', 'downloads'];
+const PRIVATE_FIELDS = ['appKey', 'downloads', 'playPackage'];
 
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
@@ -64,7 +64,7 @@ function seed_content(): array
         $base = [
             'id' => new_id(), 'type' => '', 'title' => '', 'summary' => '', 'body' => '', 'image' => '',
             'link' => '', 'platform' => '', 'status' => '', 'value' => '', 'featured' => false,
-            'appKey' => '', 'downloads' => '',
+            'appKey' => '', 'downloads' => '', 'playPackage' => '', 'videoUrl' => '', 'price' => '', 'sizes' => '',
         ];
         $created = $iso($fields['_days'] ?? 0);
         unset($fields['_days']);
@@ -85,6 +85,10 @@ function seed_content(): array
         $item(['_days' => 3, 'type' => 'data', 'title' => 'Bugs aplastados', 'value' => '404', 'summary' => 'Los que encontramos.']),
         $item(['_days' => 3, 'type' => 'data', 'title' => 'Año de fundación', 'value' => gmdate('Y'), 'summary' => 'Insert coin.']),
         $item(['_days' => 4, 'type' => 'image', 'title' => 'El logo', 'summary' => 'La cosa nos observa.', 'image' => 'assets/img/logo.webp']),
+        $item(['_days' => 5, 'type' => 'product', 'title' => 'Camiseta "The Thing"', 'price' => '24.99', 'sizes' => 'S, M, L, XL', 'status' => 'Disponible',
+            'summary' => 'Camiseta negra 100% algodón con el gato glitch.', 'image' => 'assets/img/logo-small.webp']),
+        $item(['_days' => 5, 'type' => 'product', 'title' => 'Taza "Insert Coin"', 'price' => '12.50', 'status' => 'Próximamente',
+            'summary' => 'Para el café de las sesiones de desarrollo nocturnas.']),
     ];
 }
 
@@ -108,6 +112,7 @@ function normalize_db(?array $db): array
         'votes' => [],          // [memberId => ['best' => itemId, 'played' => itemId]]
         'notifications' => [],
         'levelplay' => ['secretKey' => '', 'refreshToken' => '', 'token' => '', 'tokenExp' => 0, 'cache' => null],
+        'googleplay' => ['serviceAccount' => '', 'bucket' => '', 'cache' => null],
     ];
     foreach ($defaults as $k => $v) {
         if (!isset($db[$k]) || !is_array($db[$k])) $db[$k] = $v;
@@ -311,9 +316,15 @@ function sanitize_content(array $in, array $existing = []): array
         'featured' => !empty($in['featured']),
         'appKey' => preg_replace('/[^\w-]/', '', clean_str($in['appKey'] ?? '', 64)),
         'downloads' => $downloads,
+        'playPackage' => preg_replace('/[^\w.]/', '', clean_str($in['playPackage'] ?? '', 150)),
+        'videoUrl' => clean_url($in['videoUrl'] ?? ''),
+        'price' => preg_replace('/[^\d.]/', '', str_replace(',', '.', clean_str($in['price'] ?? '', 12))),
+        'sizes' => clean_str($in['sizes'] ?? '', 120),
+        'currency' => in_array(strtoupper((string) ($in['currency'] ?? '')), ['USD', 'MXN', 'EUR', 'ARS', 'COP', 'CLP', 'PEN'], true) ? strtoupper((string) $in['currency']) : 'USD',
     ]);
     if ($item['title'] === '') fail(400, 'El título es obligatorio');
     if ($type === 'image' && $item['image'] === '') fail(400, 'La imagen es obligatoria');
+    if ($type === 'video' && $item['videoUrl'] === '') fail(400, 'Falta el vídeo (enlace de YouTube/Vimeo o archivo subido)');
     return $item;
 }
 
@@ -396,26 +407,15 @@ function unsubscribe_link(array $db, string $memberId): string
     return site_url() . 'api/members.php?action=unsubscribe&u=' . rawurlencode($memberId) . '&t=' . $t;
 }
 
-/** Envía la novedad por correo (función mail() de PHP; Hostinger la soporta). */
+/** Envía la novedad por correo con la plantilla retro. */
 function send_notification_emails(array $recipients, array $n): int
 {
-    if (!$recipients || !function_exists('mail')) return 0;
+    require_once __DIR__ . '/_mail.php';
     $sent = 0;
-    $subject = '=?UTF-8?B?' . base64_encode('THE THING · ' . $n['title']) . '?=';
     $link = site_url() . ($n['item'] ? '#ver-' . $n['item'] : '');
-    $fromName = '=?UTF-8?B?' . base64_encode(MAIL_FROM_NAME) . '?=';
     foreach (array_slice($recipients, 0, 500) as $r) {
-        $body = "Hola {$r['name']}:\n\n"
-            . "{$n['title']}\n"
-            . ($n['text'] !== '' ? "{$n['text']}\n" : '')
-            . "\nVer en la web: {$link}\n\n"
-            . "— THE THING\n\n"
-            . "¿No quieres recibir más correos? {$r['unsub']}\n";
-        $headers = "From: {$fromName} <" . MAIL_FROM . ">\r\n"
-            . "MIME-Version: 1.0\r\n"
-            . "Content-Type: text/plain; charset=UTF-8\r\n"
-            . "List-Unsubscribe: <{$r['unsub']}>\r\n";
-        if (@mail($r['email'], $subject, $body, $headers)) $sent++;
+        [$html, $text] = mail_notification($r['name'], $n, $link, $r['unsub']);
+        if (send_mail($r['email'], 'THE THING · ' . $n['title'], $html, $text, $r['unsub'])) $sent++;
     }
     return $sent;
 }

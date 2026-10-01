@@ -5,7 +5,7 @@ DirectoryIndex index.html index.php
 ErrorDocument 404 /404.html
 
 # Archivos que no deben verse desde el navegador
-<FilesMatch "^(\.|README|LICENSE)|\.(md|log|sh)$">
+<FilesMatch "^(\.|README|LICENSE)|\.(md|log|sh|bat|command)$">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>

@@ -132,6 +132,14 @@ if ($action === 'register') {
     if ($member === 'email') fail(409, 'Ya existe una cuenta con ese correo');
     if ($member === 'name') fail(409, 'Ese nombre de jugador ya está ocupado');
     member_login($member['id']);
+    if ($member['emailNotify']) {
+        require_once __DIR__ . '/_mail.php';
+        $unsub = with_db(function (array &$db) use ($member) {
+            return unsubscribe_link($db, $member['id']);
+        });
+        [$html, $text] = mail_welcome($member['name'], $unsub);
+        send_mail($member['email'], '¡Bienvenido a THE THING, ' . $member['name'] . '!', $html, $text, $unsub);
+    }
     respond(201, ['member' => public_member($member), 'unread' => 1]);
 }
 

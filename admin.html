@@ -57,6 +57,24 @@
         <button class="btn btn--solid btn--block" type="submit">▶ Crear y entrar</button>
       </form>
 
+      <form id="pinForm" class="form" novalidate hidden>
+        <p class="form__hint" id="pinHint"></p>
+        <div class="pin-boxes" id="pinBoxes" role="group" aria-label="PIN de 6 dígitos">
+          <input inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Dígito 1">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 2">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 3">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 4">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 5">
+          <input inputmode="numeric" maxlength="1" aria-label="Dígito 6">
+        </div>
+        <p class="form__error" id="pinError" role="alert"></p>
+        <button class="btn btn--solid btn--block" type="submit">▶ Verificar PIN</button>
+        <div class="pin-actions">
+          <button type="button" class="linkish" id="pinResend">Reenviar PIN</button>
+          <button type="button" class="linkish" id="pinBack">◀ Volver</button>
+        </div>
+      </form>
+
       <a class="login-card__back" href="index.html" data-transition>◀ Volver al sitio</a>
     </div>
   </main>
@@ -85,12 +103,14 @@
     <div class="dash">
       <nav class="admin-nav" aria-label="Secciones del panel">
         <button type="button" data-tab="overview" class="active"><i>■</i> Resumen</button>
-        <button type="button" data-tab="stats"><i>$</i> Estadísticas</button>
+        <button type="button" data-tab="stats"><i>%</i> Estadísticas</button>
         <button type="button" data-tab="community"><i>@</i> Comunidad</button>
         <button type="button" data-tab="app"><i>▶</i> Juegos / apps</button>
         <button type="button" data-tab="news"><i>✉</i> Noticias</button>
         <button type="button" data-tab="data"><i>#</i> Datos</button>
         <button type="button" data-tab="image"><i>▣</i> Galería</button>
+        <button type="button" data-tab="video"><i>▷</i> Vídeos</button>
+        <button type="button" data-tab="product"><i>$</i> Tienda</button>
         <button type="button" data-tab="account"><i>☺</i> Cuenta</button>
         <a href="index.html" target="_blank" rel="noopener"><i>↗</i> Ver sitio</a>
       </nav>

@@ -42,6 +42,20 @@ Puedes probar **todo** sin subir nada:
    *Estadísticas* (escribe cualquier texto en las claves de LevelPlay para ver
    datos **simulados**) y *Comunidad*.
 
+Los números de LevelPlay y Google Play que ves en la demo son **de ejemplo**:
+el navegador no deja leer sus APIs sin servidor. Para ver tus datos reales sin
+subir nada, usa el servidor local de abajo.
+
+### Probar con PHP en tu computadora (datos reales)
+
+- **Windows**: instala [XAMPP](https://www.apachefriends.org) y haz doble clic en
+  `probar-con-php.bat`.
+- **Mac**: instala PHP (`brew install php`) y haz doble clic en `probar-con-php.command`.
+
+Se abre `http://localhost:8000` con la web funcionando de verdad (LevelPlay y
+Google Play reales). Como en tu computadora no se envían correos, el **PIN del
+panel** está en el archivo `data/ultimo-pin.php` (ábrelo con el Bloc de notas).
+
 En el modo demo todo se guarda solo en **ese navegador** (nadie más lo ve) y el
 botón *Reiniciar demo* lo borra. Los correos no se envían de verdad. En el
 servidor real el modo demo no se activa (salvo que añadas `?demo=1` a la
@@ -94,6 +108,18 @@ explica la causa, pero las más comunes son:
   subcarpeta.
 - **PHP o permisos**: abre `api/check.php` y revisa qué sale en `false`.
 
+### Acceso del staff con PIN por correo
+
+Entrar al panel tiene dos pasos: correo + contraseña y, después, un **PIN de 6
+dígitos** que llega a `admin@thethinggame.com` (caduca en 10 minutos, 5 intentos).
+Si alguien escribe ese correo con una contraseña equivocada, te llega una
+**alerta de seguridad** por correo.
+
+- Si el correo no llega, el PIN también queda en `data/ultimo-pin.php` (ábrelo
+  con el Administrador de archivos de Hostinger).
+- Emergencia: pon `const ADMIN_2FA = false;` en `api/config.php` para entrar
+  solo con contraseña (y vuelve a ponerlo en `true` después).
+
 ### ¿Olvidaste la contraseña?
 
 Con el Administrador de archivos, abre `data/db.php`, busca `"password": "…"`
@@ -112,6 +138,8 @@ entrar en `admin.html`: te pedirá crear una contraseña nueva.
 | Galería         | Imagen + título + descripción                  | "Galería" con visor a pantalla completa |
 | Estadísticas    | Ganancias LevelPlay, descargas, valoraciones, votos | — (solo administradores)          |
 | Comunidad       | Jugadores, reseñas (borrar), avisos            | Campana de avisos de los jugadores    |
+| Vídeos          | Enlace de YouTube/Vimeo o MP4                  | Cassettes VHS que se meten en una tele vieja |
+| Tienda          | Producto, precio, moneda, tallas, enlace de compra | Tienda de merch (sin enlace → pedido por correo) |
 | Cuenta          | Cambiar contraseña                             | —                                     |
 
 Al publicar un juego, noticia o imagen, deja marcada la casilla **"Avisar a los
@@ -137,9 +165,28 @@ Los datos se guardan en caché 30 minutos (la API de LevelPlay limita las
 consultas); el botón **↻ Actualizar** fuerza una nueva descarga. Las cifras
 son en dólares (USD), como las reporta LevelPlay.
 
-**Descargas.** LevelPlay no da el número de descargas (eso lo tienen Google Play
-Console y App Store Connect), así que se escriben a mano en cada juego, en el
-campo *Descargas totales (privado)*. Solo lo ven los administradores.
+**Descargas (automáticas con Google Play).** LevelPlay no da descargas; las
+leemos de los informes oficiales de Google Play Console:
+
+1. En **Google Cloud Console** crea un proyecto → *IAM → Cuentas de servicio* →
+   crea una y descarga una **clave JSON**.
+2. En **Play Console → Usuarios y permisos** invita el correo de esa cuenta con el
+   permiso *"Ver información de la app y descargar informes masivos"* (puede
+   tardar hasta 24 h en activarse).
+3. En **Play Console → Descargar informes → Estadísticas** pulsa *"Copiar URI de
+   Cloud Storage"* (`gs://pubsite_prod_rev_…`).
+4. En el panel: **Estadísticas → Conexión con Google Play**, pega el JSON y el URI.
+5. En cada juego escribe su **paquete de Google Play** (`com.estudio.juego`) y pulsa
+   *Obtener* para comprobarlo.
+
+Se muestran las instalaciones totales (*Total User Installs*) y las de los
+últimos 30 días; se actualizan cada 6 horas o con *↻ Actualizar*. Las descargas
+de otras tiendas (App Store, itch.io…) se pueden sumar a mano en cada juego.
+
+En **Estadísticas** puedes ver la vista **General** (todas las apps) o elegir
+cada aplicación por separado; la tabla final tiene una fila de **TOTAL**. Si los
+números de LevelPlay no te cuadran, pulsa *"Ver respuesta de LevelPlay"* y
+envíanos lo que aparece para ajustarlo.
 
 ## Correos de avisos
 

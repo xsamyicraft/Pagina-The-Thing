@@ -53,6 +53,8 @@ function notification_for(array $item, bool $isNew): array
         'news' => $isNew ? 'Nueva noticia' : 'Noticia actualizada',
         'data' => $isNew ? 'Nuevo dato' : 'Dato actualizado',
         'image' => $isNew ? 'Nueva imagen en la galería' : 'Imagen actualizada',
+        'video' => $isNew ? 'Nuevo vídeo' : 'Vídeo actualizado',
+        'product' => $isNew ? 'Nuevo en la tienda' : 'Tienda actualizada',
     ];
     $prefix = $labels[$item['type']] ?? 'Novedad';
     return [$prefix . ': ' . $item['title'], $item['summary'] ?? ''];
@@ -81,7 +83,7 @@ if ($action === 'create' || $action === 'update') {
         $mail = null;
         if ($notify) {
             [$title, $text] = notification_for($item, $action === 'create');
-            $mail = add_notification($db, $title, $text, in_array($item['type'], ['app', 'news', 'image'], true) ? $item['id'] : '', $item['type']);
+            $mail = add_notification($db, $title, $text, in_array($item['type'], ['app', 'news', 'image', 'video', 'product'], true) ? $item['id'] : '', $item['type']);
         }
         return ['item' => $item, 'mail' => $mail];
     }, true);
