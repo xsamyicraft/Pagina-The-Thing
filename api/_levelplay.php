@@ -5,7 +5,9 @@
  * 1) Token:   GET {API}/partners/publisher/auth
  *             cabeceras "secretkey" y "refreshToken" (LevelPlay → My Account)
  *             → devuelve un token Bearer válido 60 minutos.
- * 2) Reporte: GET {API}/partners/publisher/mediation/applications/v5/stats
+ * 2) Reporte: GET {API}/levelPlay/reporting/v1   (API actual)
+ *    La versión antigua (/partners/publisher/mediation/applications/v5/stats)
+ *    fue retirada por LevelPlay el 15/08/2025; solo se usa si la nueva no existe.
  *             ?startDate=AAAA-MM-DD&endDate=AAAA-MM-DD&breakdowns=date,app&metrics=...
  *
  * Los datos se guardan en caché (LEVELPLAY_CACHE_MINUTES) porque la API
@@ -68,6 +70,11 @@ function lp_excerpt(string $body): string
     return $s === '' ? '' : 'Respuesta: ' . (function_exists('mb_substr') ? mb_substr($s, 0, 200) : substr($s, 0, 200));
 }
 
+const LP_ENDPOINTS = [
+    '/levelPlay/reporting/v1',                                   // actual
+    '/partners/publisher/mediation/applications/v5/stats',       // antigua (retirada)
+];
+
 /** Descarga el reporte diario por app. Devuelve las filas tal cual. */
 function lp_fetch_stats(string $token, string $start, string $end, array $metrics): array
 {
@@ -77,17 +84,39 @@ function lp_fetch_stats(string $token, string $start, string $end, array $metric
         'breakdowns' => 'date,app',
         'metrics' => implode(',', $metrics),
     ]);
-    [$status, $body] = lp_http(LEVELPLAY_API . '/partners/publisher/mediation/applications/v5/stats?' . $q, [
-        'Authorization: Bearer ' . $token,
-        'Accept: application/json',
-    ]);
-    if ($status === 401) throw new RuntimeException('TOKEN_EXPIRED');
-    if ($status !== 200) throw new RuntimeException('Error de LevelPlay (HTTP ' . $status . '). ' . lp_excerpt($body));
-    $rows = json_decode($body, true);
-    if (!is_array($rows)) throw new RuntimeException('Respuesta inesperada de LevelPlay. ' . lp_excerpt($body));
-    // Algunas versiones envuelven la lista en { data: [...] }
-    if (isset($rows['data']) && is_array($rows['data']) && !isset($rows[0])) $rows = $rows['data'];
-    return $rows;
+    foreach (LP_ENDPOINTS as $i => $path) {
+        [$status, $body] = lp_http(LEVELPLAY_API . $path . '?' . $q, [
+            'Authorization: Bearer ' . $token,
+            'Accept: application/json',
+        ]);
+        // Si la dirección nueva no existe, prueba la antigua
+        if ($status === 404 && $i < count(LP_ENDPOINTS) - 1) continue;
+        if ($status === 401 || $status === 403) throw new RuntimeException('TOKEN_EXPIRED|HTTP ' . $status . ' ' . lp_excerpt($body));
+        if ($status !== 200) throw new RuntimeException('Error de LevelPlay (HTTP ' . $status . '). ' . lp_excerpt($body));
+        $rows = json_decode($body, true);
+        if (!is_array($rows)) throw new RuntimeException('Respuesta inesperada de LevelPlay. ' . lp_excerpt($body));
+        // La API actual envuelve la lista en { "data": [...] }
+        if (isset($rows['data']) && is_array($rows['data']) && !isset($rows[0])) $rows = $rows['data'];
+        return $rows;
+    }
+    throw new RuntimeException('LevelPlay no encontró la API de reportes (HTTP 404)');
+}
+
+function lp_is_token_error(RuntimeException $e): bool
+{
+    return strpos($e->getMessage(), 'TOKEN_EXPIRED') === 0;
+}
+
+/** Saca la clave, el nombre y la plataforma de la app de una fila (admite varios formatos). */
+function lp_app_info(array $row): array
+{
+    $app = $row['app'] ?? null;
+    $key = (string) ($row['appKey'] ?? (is_array($app) ? ($app['appKey'] ?? $app['key'] ?? $app['id'] ?? '') : ''));
+    $name = (string) ($row['appName'] ?? (is_array($app) ? ($app['appName'] ?? $app['name'] ?? '') : (is_string($app) ? $app : '')));
+    if ($key === '' && is_string($app)) $key = $app;
+    if ($key === '') $key = $name;
+    $platform = (string) ($row['platform'] ?? (is_array($app) ? ($app['platform'] ?? '') : ''));
+    return [$key, $name !== '' ? $name : $key, $platform];
 }
 
 /** Convierte las filas de LevelPlay en totales por día y por app. */
@@ -98,8 +127,8 @@ function lp_aggregate(array $rows): array
     $totals = ['revenue' => 0.0, 'impressions' => 0, 'activeUsers' => 0];
     foreach ($rows as $row) {
         if (!is_array($row)) continue;
-        $date = substr((string) ($row['date'] ?? ''), 0, 10);
-        $appKey = (string) ($row['appKey'] ?? '');
+        $date = substr((string) ($row['date'] ?? $row['day'] ?? ''), 0, 10);
+        [$appKey, $appName, $platform] = lp_app_info($row);
         // Las métricas pueden venir en la fila o dentro de "data": [ {...}, ... ]
         $metricRows = isset($row['data']) && is_array($row['data']) ? $row['data'] : [$row];
         $m = ['revenue' => 0.0, 'impressions' => 0, 'activeUsers' => 0];
@@ -115,7 +144,7 @@ function lp_aggregate(array $rows): array
         }
         if ($appKey !== '') {
             $apps[$appKey] = $apps[$appKey] ?? [
-                'appKey' => $appKey, 'appName' => (string) ($row['appName'] ?? $appKey), 'platform' => (string) ($row['platform'] ?? ''),
+                'appKey' => $appKey, 'appName' => $appName, 'platform' => $platform,
                 'revenue' => 0.0, 'impressions' => 0, 'activeUsers' => 0, 'days' => 0, 'daily' => [],
             ];
             foreach ($m as $k => $v) $apps[$appKey][$k] += $v;
@@ -176,7 +205,7 @@ function levelplay_report(int $days, bool $force = false): array
         try {
             $rows = lp_fetch_stats($token, $start, $end, LP_METRICS);
         } catch (RuntimeException $e) {
-            if ($e->getMessage() === 'TOKEN_EXPIRED') {
+            if (lp_is_token_error($e)) {
                 $token = lp_fetch_token($cfg['secretKey'], $cfg['refreshToken']);
                 $rows = lp_fetch_stats($token, $start, $end, LP_METRICS);
             } elseif (strpos($e->getMessage(), 'HTTP 400') !== false) {
@@ -196,7 +225,9 @@ function levelplay_report(int $days, bool $force = false): array
         }, true);
         return ['configured' => true, 'data' => $data, 'error' => null, 'fetchedAt' => $now];
     } catch (RuntimeException $e) {
-        $msg = $e->getMessage() === 'TOKEN_EXPIRED' ? 'LevelPlay rechazó el token. Revisa las credenciales.' : $e->getMessage();
+        $msg = lp_is_token_error($e)
+            ? 'LevelPlay aceptó tus claves pero rechazó la consulta del informe (' . substr($e->getMessage(), 14) . '). Revisa que tu usuario tenga acceso a los reportes.'
+            : $e->getMessage();
         return ['configured' => true, 'data' => $cache['data'] ?? null, 'error' => $msg, 'fetchedAt' => $cache['fetchedAt'] ?? null];
     }
 }
@@ -209,6 +240,18 @@ function levelplay_raw_sample(): array
     });
     if (empty($cfg['secretKey']) || empty($cfg['refreshToken'])) throw new RuntimeException('LevelPlay no está conectado');
     $token = lp_fetch_token($cfg['secretKey'], $cfg['refreshToken']);
-    $rows = lp_fetch_stats($token, gmdate('Y-m-d', time() - 2 * 86400), gmdate('Y-m-d'), LP_METRICS);
+    $start = gmdate('Y-m-d', time() - 2 * 86400);
+    try {
+        $rows = lp_fetch_stats($token, $start, gmdate('Y-m-d'), LP_METRICS);
+    } catch (RuntimeException $e) {
+        if (!lp_is_token_error($e)) throw $e;
+        throw new RuntimeException('Token obtenido correctamente, pero LevelPlay rechazó el informe: ' . substr($e->getMessage(), 14));
+    }
+    // Guarda el token nuevo y borra la caché para que las estadísticas se recarguen
+    with_db(function (array &$db) use ($token) {
+        $db['levelplay']['token'] = $token;
+        $db['levelplay']['tokenExp'] = time() + 50 * 60;
+        $db['levelplay']['cache'] = null;
+    }, true);
     return ['rows' => count($rows), 'sample' => array_slice($rows, 0, 4)];
 }
