@@ -449,207 +449,259 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Vídeos: cassettes que se meten en el vídeo VHS y se ven en la TV    */
+  /* Vídeos: estante de cassettes → vídeo VHS → televisor CRT             */
   /* ------------------------------------------------------------------ */
 
+  const LABEL_COLORS = ['#efe8d6', '#f4d35e', '#ff8a5b', '#8fe3cf', '#f2f2f2', '#c3b1e1', '#ffb3c1'];
+  const labelColor = (i) => LABEL_COLORS[i % LABEL_COLORS.length];
   let playingTape = null;
+  let busy = false;
+  let vcrTimer = null;
 
   function renderTapes() {
-    const wrap = $('#tapes');
+    const shelf = $('#tapes');
     const vids = byType('video');
     if (!vids.length) {
-      wrap.innerHTML = '<div class="empty">NO HAY CASSETTES EN LA ESTANTERÍA… TODAVÍA</div>';
+      shelf.innerHTML = '<p class="empty-msg">EL ESTANTE ESTÁ VACÍO… DE MOMENTO</p>';
       return;
     }
-    const year = (iso) => new Date(iso).getFullYear();
-    wrap.innerHTML = vids.map((v, i) => `
-      <button type="button" class="cassette${playingTape === v.id ? ' playing' : ''}" data-tape="${esc(v.id)}" style="--r:${((i * 53) % 5) - 2}deg; --d:${Math.min(i, 8) * 0.06}s" aria-label="Reproducir ${esc(v.title)}">
-        <span class="cassette__label"><b>${esc(v.title)}</b><small>THE THING · ${year(v.createdAt)} · VHS</small></span>
-        <span class="cassette__window" aria-hidden="true"><i class="reel"></i><i class="reel"></i></span>
-      </button>`).join('');
+    shelf.innerHTML = vids.map((v, i) => {
+      const tilt = i % 5 === 3 ? '-4deg' : i % 7 === 5 ? '3deg' : '0deg';
+      return `
+        <button type="button" class="spine${playingTape === v.id ? ' empty' : ''}" data-tape="${esc(v.id)}" data-i="${i}"
+          style="--lc:${labelColor(i)}; --tilt:${tilt}; --d:${Math.min(i, 12) * 0.05}s" aria-label="Reproducir ${esc(v.title)}">
+          <span class="spine__brand" aria-hidden="true">THE THING</span>
+          <span class="spine__label"><span class="spine__title">${esc(v.title)}</span></span>
+          <span class="spine__vhs" aria-hidden="true">VHS</span>
+        </button>`;
+    }).join('');
   }
 
-  /** Convierte un enlace de YouTube/Vimeo o un archivo en el reproductor adecuado. */
+  const ytId = (url) => {
+    const m = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/|v\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  };
+  const vimeoId = (url) => {
+    const m = String(url).match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    return m ? m[1] : null;
+  };
+  /** Enlace para abrir el vídeo fuera (respaldo si el reproductor falla). */
+  function externalLink(url) {
+    const yt = ytId(url);
+    if (yt) return `https://www.youtube.com/watch?v=${yt}`;
+    const vm = vimeoId(url);
+    if (vm) return `https://vimeo.com/${vm}`;
+    return url;
+  }
+
+  /**
+   * Reproductor según el tipo de enlace.
+   * YouTube exige saber desde qué web se reproduce (cabecera Referer). Al abrir
+   * la página como archivo local (file://) no la hay y YouTube muestra
+   * "Error 153", así que en ese caso se avisa y se ofrece abrirlo en YouTube.
+   */
   function playerHtml(url) {
-    const yt = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/);
-    if (yt) return `<iframe src="https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="Vídeo" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
-    const vm = String(url).match(/vimeo\.com\/(?:video\/)?(\d+)/);
-    if (vm) return `<iframe src="https://player.vimeo.com/video/${vm[1]}?autoplay=1" title="Vídeo" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+    const yt = ytId(url);
+    if (yt) {
+      if (location.protocol === 'file:') return null;
+      const origin = encodeURIComponent(location.origin);
+      return `<iframe src="https://www.youtube.com/embed/${yt}?autoplay=1&rel=0&playsinline=1&modestbranding=1&origin=${origin}" title="Vídeo de YouTube"
+        allow="autoplay; encrypted-media; picture-in-picture; fullscreen; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
+    }
+    const vm = vimeoId(url);
+    if (vm) {
+      return `<iframe src="https://player.vimeo.com/video/${vm}?autoplay=1" title="Vídeo de Vimeo" allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
+    }
     return `<video src="${esc(url)}" controls autoplay playsinline></video>`;
   }
 
-  let vcrTimer = null;
-  function playTape(id) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, reduceMotion ? 0 : ms));
+  const pad2 = (n) => String(n).padStart(2, '0');
+
+  function setVcr(mode, clock) {
+    $('#vcrMode').textContent = mode;
+    if (clock !== undefined) $('#vcrClock').textContent = clock;
+  }
+
+  /** Crea el cassette visto de frente (para la animación) sobre un rectángulo. */
+  function makeFlyingTape(v, i) {
+    const el = document.createElement('div');
+    el.className = 'tape-fly';
+    el.style.setProperty('--lc', labelColor(i));
+    el.innerHTML = `<span class="tape-fly__label">${esc(v.title)}</span><span class="tape-fly__win"><i></i><i></i></span>`;
+    document.body.appendChild(el);
+    return el;
+  }
+
+  async function playTape(id) {
     const v = content.find((i) => i.id === id && i.type === 'video');
-    if (!v) return;
+    if (!v || busy) return;
+    busy = true;
     const tv = $('#tv');
-    const glass = $('#tvGlass');
-    const vcr = document.querySelector('.vcr');
-    const tape = document.querySelector(`[data-tape="${CSS.escape(id)}"]`);
-    const slot = $('#vcrSlot');
-    beep('select');
+    const vcr = $('#vcr');
+    const screen = $('#tvGlass');
+    try {
+      if (playingTape) await ejectTape(true);
+      const spine = document.querySelector(`.spine[data-tape="${CSS.escape(id)}"]`);
+      const idx = spine ? Number(spine.dataset.i) : 0;
+      beep('select');
+      setVcr('LOAD', '--:--');
 
-    // Animación: el cassette vuela hasta la ranura del vídeo
-    if (tape && !reduceMotion) {
-      const from = tape.getBoundingClientRect();
-      const to = slot.getBoundingClientRect();
-      const fly = tape.cloneNode(true);
-      fly.className = 'cassette cassette-fly';
-      Object.assign(fly.style, { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`, animation: 'none' });
-      document.body.appendChild(fly);
-      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
-      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
-      const sc = Math.min(1, (to.width * 0.8) / from.width);
-      vcr.classList.add('loading');
-      fly.animate([
-        { transform: 'translate(0,0) rotate(0) scale(1)', opacity: 1 },
-        { transform: `translate(${dx * 0.6}px, ${dy * 0.6 - 60}px) rotate(-8deg) scale(${(1 + sc) / 2})`, opacity: 1, offset: 0.55 },
-        { transform: `translate(${dx}px, ${dy}px) rotate(0) scale(${sc}) scaleY(.15)`, opacity: 0.2 },
-      ], { duration: 750, easing: 'cubic-bezier(.6,0,.3,1)' }).onfinish = () => {
-        fly.remove();
-        vcr.classList.remove('loading');
+      // 1) Sacar el cassette del estante, girarlo y meterlo en la ranura
+      if (spine && !reduceMotion) {
+        spine.classList.add('out');
+        const from = spine.getBoundingClientRect();
+        const slot = $('#vcrSlot').getBoundingClientRect();
+        const fly = makeFlyingTape(v, idx);
+        const w = 168;
+        const h = 92;
+        const sx = from.left + from.width / 2 - w / 2;
+        const sy = from.top + from.height / 2 - h / 2;
+        const ex = slot.left + slot.width / 2 - w / 2;
+        const ey = slot.top - h + 10;
+        Object.assign(fly.style, { left: '0px', top: '0px' });
+        await fly.animate([
+          { transform: `translate(${sx}px, ${sy}px) rotate(-90deg) scale(.55, 1.15)`, opacity: 0 },
+          { transform: `translate(${sx}px, ${sy - 60}px) rotate(-90deg) scale(.6, 1.1)`, opacity: 1, offset: 0.15 },
+          { transform: `translate(${(sx + ex) / 2}px, ${Math.min(sy, ey) - 90}px) rotate(-12deg) scale(1.05)`, opacity: 1, offset: 0.6 },
+          { transform: `translate(${ex}px, ${ey - 14}px) rotate(0deg) scale(1)`, opacity: 1, offset: 0.85 },
+          { transform: `translate(${ex}px, ${ey}px) rotate(0deg) scale(1)`, opacity: 1 },
+        ], { duration: 1100, easing: 'cubic-bezier(.55,0,.25,1)', fill: 'forwards' }).finished;
+        vcr.classList.add('open');
         beep('blip');
-      };
-    }
+        await fly.animate([
+          { transform: `translate(${ex}px, ${ey}px)`, clipPath: 'inset(0 0 0 0)' },
+          { transform: `translate(${ex}px, ${ey + h - 6}px)`, clipPath: `inset(0 0 ${h - 6}px 0)` },
+        ], { duration: 520, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
+        fly.remove();
+        spine.classList.remove('out');
+        spine.classList.add('empty');
+      } else if (spine) {
+        spine.classList.add('empty');
+      }
+      vcr.classList.remove('open');
+      vcr.classList.add('has-tape');
+      playingTape = id;
+      beep('coin');
 
-    playingTape = id;
-    document.querySelectorAll('.cassette').forEach((c) => c.classList.toggle('playing', c.dataset.tape === id));
-    tv.classList.remove('playing');
-    tv.classList.add('switching');
-    glass.querySelectorAll('iframe, video').forEach((el) => el.remove());
-    $('#tvOsd').innerHTML = 'CARGANDO…<br><small>▶ PLAY</small>';
-    $('#nowPlaying').innerHTML = `AHORA: <b>${esc(v.title)}</b>${v.summary ? ` — ${esc(v.summary)}` : ''}`;
-    clearInterval(vcrTimer);
-    setTimeout(() => {
-      glass.insertAdjacentHTML('afterbegin', playerHtml(v.videoUrl));
+      // 2) La tele sintoniza (estática) y se enciende el tubo
+      tv.classList.remove('playing', 'message', 'power-off');
+      tv.classList.add('switching');
+      $('#tvCh').textContent = '03';
+      $('#tvOsd').innerHTML = '<b>TRACKING…</b><small>▶ PLAY</small>';
+      setVcr('PLAY ▶', '0:00');
+      $('#nowPlaying').innerHTML = `AHORA: <b>${esc(v.title)}</b>${v.summary ? ` — ${esc(v.summary)}` : ''}
+        <a href="${esc(externalLink(v.videoUrl))}" target="_blank" rel="noopener noreferrer">Ver en ${ytId(v.videoUrl) ? 'YouTube' : 'otra pestaña'} ↗</a>`;
+      await sleep(850);
+
+      const html = playerHtml(v.videoUrl);
       tv.classList.remove('switching');
-      tv.classList.add('playing', 'on');
-      setTimeout(() => tv.classList.remove('on'), 650);
+      if (!html) {
+        // Abierto como archivo local: YouTube no lo permite
+        tv.classList.add('playing', 'message');
+        $('#tvOsd').innerHTML = `<b>NO SE PUEDE REPRODUCIR AQUÍ</b>
+          <small style="animation:none">YouTube no funciona al abrir la web como archivo (file://).<br>En tu servidor (Hostinger o probar-con-php) sí funciona.</small>
+          <a href="${esc(externalLink(v.videoUrl))}" target="_blank" rel="noopener noreferrer">▶ Ver en YouTube ↗</a>`;
+      } else {
+        screen.insertAdjacentHTML('afterbegin', html);
+        tv.classList.add('playing', 'power-on', 'osd');
+        setTimeout(() => tv.classList.remove('power-on'), 750);
+        setTimeout(() => tv.classList.remove('osd'), 3300);
+      }
       const start = Date.now();
-      const disp = $('#vcrDisplay');
-      const tick = () => {
+      clearInterval(vcrTimer);
+      vcrTimer = setInterval(() => {
         const t = Math.floor((Date.now() - start) / 1000);
-        disp.textContent = `▶ ${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
-      };
-      tick();
-      vcrTimer = setInterval(tick, 1000);
-    }, reduceMotion ? 50 : 900);
+        const clock = `${Math.floor(t / 60)}:${pad2(t % 60)}`;
+        $('#vcrClock').textContent = clock;
+        $('#vhsTime').textContent = `SP 0:${pad2(Math.floor(t / 60))}:${pad2(t % 60)}`;
+      }, 1000);
+    } finally {
+      busy = false;
+    }
   }
 
-  function ejectTape() {
+  /** Expulsa el cassette: el tubo se apaga y la cinta vuelve al estante. */
+  async function ejectTape(silent = false) {
     if (!playingTape) return;
-    beep('back');
-    playingTape = null;
-    clearInterval(vcrTimer);
+    const id = playingTape;
+    const v = content.find((i) => i.id === id);
     const tv = $('#tv');
+    const vcr = $('#vcr');
+    clearInterval(vcrTimer);
+    if (!silent) beep('back');
+    setVcr('EJECT', '--:--');
+    tv.classList.remove('osd');
+    tv.classList.add('power-off');
+    await sleep(450);
     $('#tvGlass').querySelectorAll('iframe, video').forEach((el) => el.remove());
-    tv.classList.remove('playing');
-    $('#tvOsd').innerHTML = 'SIN SEÑAL<br><small>INSERTA UN CASSETTE</small>';
-    $('#vcrDisplay').textContent = '--:--';
+    tv.classList.remove('playing', 'message', 'power-off');
+    $('#tvOsd').innerHTML = '<b>SIN SEÑAL</b><small>SACA UN CASSETTE DEL ESTANTE</small>';
+    $('#tvCh').textContent = '--';
     $('#nowPlaying').textContent = '';
-    document.querySelectorAll('.cassette.playing').forEach((c) => c.classList.remove('playing'));
+    playingTape = null;
+
+    const spine = document.querySelector(`.spine[data-tape="${CSS.escape(id)}"]`);
+    if (spine && v && !reduceMotion) {
+      vcr.classList.add('open');
+      const slot = $('#vcrSlot').getBoundingClientRect();
+      const to = spine.getBoundingClientRect();
+      const fly = makeFlyingTape(v, Number(spine.dataset.i));
+      const ex = slot.left + slot.width / 2 - 84;
+      const ey = slot.top - 92 + 10;
+      const tx = to.left + to.width / 2 - 84;
+      const ty = to.top + to.height / 2 - 46;
+      Object.assign(fly.style, { left: '0px', top: '0px' });
+      vcr.classList.remove('has-tape');
+      await fly.animate([
+        { transform: `translate(${ex}px, ${ey + 86}px)`, clipPath: 'inset(0 0 86px 0)' },
+        { transform: `translate(${ex}px, ${ey}px)`, clipPath: 'inset(0 0 0 0)', offset: 0.3 },
+        { transform: `translate(${(ex + tx) / 2}px, ${Math.min(ey, ty) - 80}px) rotate(-30deg) scale(.9)`, offset: 0.65 },
+        { transform: `translate(${tx}px, ${ty}px) rotate(-90deg) scale(.55, 1.15)`, opacity: 0.2 },
+      ], { duration: 1000, easing: 'cubic-bezier(.4,0,.3,1)', fill: 'forwards' }).finished;
+      fly.remove();
+      vcr.classList.remove('open');
+    }
+    vcr.classList.remove('has-tape');
+    if (spine) {
+      spine.classList.remove('empty');
+      spine.animate([{ transform: 'translateY(-24px)' }, { transform: 'translateY(0)' }], { duration: 350, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+    }
+    setVcr('STOP', '--:--');
   }
 
-  $('#tapes').addEventListener('click', (e) => {
+  const tapesEl = $('#tapes');
+  tapesEl.addEventListener('click', (e) => {
     const t = e.target.closest('[data-tape]');
     if (t) playTape(t.dataset.tape);
   });
-  $('#vcrEject').addEventListener('click', ejectTape);
+  // Ficha del cassette al pasar el ratón
+  tapesEl.addEventListener('pointerover', (e) => {
+    const t = e.target.closest('[data-tape]');
+    const tip = $('#shelfTip');
+    if (!t) return;
+    const v = content.find((i) => i.id === t.dataset.tape);
+    if (v) tip.innerHTML = `<b>${esc(v.title)}</b>${v.summary ? `<br>${esc(v.summary)}` : ''}`;
+  });
+  tapesEl.addEventListener('pointerleave', () => { $('#shelfTip').textContent = 'Pasa el ratón por un cassette'; });
+  $('#vcrEject').addEventListener('click', () => { if (!busy) ejectTape(); });
+  $('#vcrStop').addEventListener('click', () => { if (!busy) ejectTape(); });
 
-  /* ------------------------------------------------------------------ */
-  /* Tienda de merch                                                     */
-  /* ------------------------------------------------------------------ */
-
-  const CURRENCIES = { USD: 'en-US', MXN: 'es-MX', EUR: 'es-ES', ARS: 'es-AR', COP: 'es-CO', CLP: 'es-CL', PEN: 'es-PE' };
-  function priceText(p) {
-    if (p.price === '' || p.price == null) return 'CONSULTAR';
-    const cur = CURRENCIES[p.currency] ? p.currency : 'USD';
-    try {
-      return new Intl.NumberFormat(CURRENCIES[cur], { style: 'currency', currency: cur }).format(Number(p.price));
-    } catch {
-      return `$${p.price}`;
-    }
-  }
-  const soldOut = (p) => /agotad|sold/i.test(p.status || '');
-  const sizesOf = (p) => String(p.sizes || '').split(',').map((x) => x.trim()).filter(Boolean);
-
-  function renderShop() {
-    const wrap = $('#shop');
-    const items = byType('product');
-    if (!items.length) {
-      wrap.innerHTML = '<div class="empty" style="grid-column:1/-1">LA TIENDA ABRE PRONTO. INSERT COIN.</div>';
-      return;
-    }
-    wrap.innerHTML = items.map((p, i) => `
-      <button type="button" class="product reveal${soldOut(p) ? ' soldout' : ''}" style="--d:${Math.min(i, 6) * 0.06}s" data-open="${esc(p.id)}">
-        <div class="product__media">${media(p)}<span class="price-tag">${esc(priceText(p))}</span></div>
-        <div class="product__body">
-          ${p.status ? `<div><span class="tag ${soldOut(p) ? '' : statusClass(p.status)}">${esc(p.status)}</span></div>` : ''}
-          <h3 class="product__title">${esc(p.title)}</h3>
-          ${p.summary ? `<p class="product__summary">${esc(p.summary)}</p>` : ''}
-          ${sizesOf(p).length ? `<div class="sizes">${sizesOf(p).map((z) => `<span>${esc(z)}</span>`).join('')}</div>` : ''}
-          <span class="product__cta">${soldOut(p) ? 'Agotado' : 'Ver producto ▶'}</span>
-        </div>
-      </button>`).join('');
-  }
-
-  function openProduct(p) {
-    const sizes = sizesOf(p);
-    const out = soldOut(p);
-    detail.open(`
-      <button class="icon-btn modal__close" type="button" data-close data-autofocus title="Cerrar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
-        <span class="sr-only">Cerrar</span>
-      </button>
-      ${p.image ? `<div class="modal__media" style="aspect-ratio:16/9"><img src="${esc(p.image)}" alt="" style="object-fit:contain;background:#0d0d0f"></div>` : ''}
-      <article class="modal__content">
-        <p class="eyebrow">Tienda oficial</p>
-        ${p.status ? `<span class="tag ${out ? '' : statusClass(p.status)}">${esc(p.status)}</span>` : ''}
-        <h2>${esc(p.title)}</h2>
-        <p class="modal__lead" style="font-family:var(--pixel);font-size:18px;color:var(--acc)">${esc(priceText(p))}</p>
-        ${p.summary ? `<p class="modal__lead">${esc(p.summary)}</p>` : ''}
-        <div class="prose">${formatText(p.body)}</div>
-        ${sizes.length ? `<p class="term" style="margin:16px 0 0;color:var(--muted);font-size:20px">TALLA:</p>
-          <div class="size-pick" role="group" aria-label="Talla">${sizes.map((z, i) => `<button type="button" data-size="${esc(z)}" aria-pressed="${i === 0}">${esc(z)}</button>`).join('')}</div>` : ''}
-        <div class="modal__actions">
-          ${out ? '<span class="btn" aria-disabled="true">Agotado</span>'
-            : `<a class="btn btn--solid" id="buyBtn" href="#" target="_blank" rel="noopener noreferrer">🛒 ${p.link ? 'Comprar' : 'Pedir por correo'}</a>`}
-          <button class="btn" type="button" data-close>◀ Seguir mirando</button>
-        </div>
-      </article>`, () => {
-      if (location.hash.startsWith('#ver-')) history.replaceState(null, '', location.pathname + location.search);
-    });
-    history.replaceState(null, '', `#ver-${p.id}`);
-    const buy = document.getElementById('buyBtn');
-    if (!buy) return;
-    const pick = () => {
-      const sel = detail.panel.querySelector('[data-size][aria-pressed="true"]');
-      return sel ? sel.dataset.size : '';
-    };
-    const update = () => {
-      const size = pick();
-      if (p.link) {
-        buy.href = p.link;
-      } else {
-        const subject = `Pedido: ${p.title}${size ? ` (talla ${size})` : ''}`;
-        const body = `Hola THE THING,\n\nQuiero pedir: ${p.title}${size ? `\nTalla: ${size}` : ''}\nPrecio: ${priceText(p)}\n\nMi nombre:\nMi dirección de envío:\n`;
-        buy.href = `mailto:contacto@thethinggame.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        buy.removeAttribute('target');
-      }
-    };
-    detail.panel.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => {
-      detail.panel.querySelectorAll('[data-size]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      beep('blip');
-      update();
-    }));
-    update();
-    buy.addEventListener('click', () => beep('coin'));
+  /* Vista previa de productos en la entrada de la tienda */
+  function renderShopPeek() {
+    const peek = $('#shopPeek');
+    if (!peek) return;
+    const items = byType('product').slice(0, 3);
+    peek.innerHTML = items.map((p, i) => (p.image
+      ? `<img src="${esc(p.image)}" alt="" style="--r:${(i - 1) * 7}deg">`
+      : `<img src="assets/img/logo-small.webp" alt="" style="--r:${(i - 1) * 7}deg; object-fit:contain; padding:8px">`)).join('');
   }
 
   function renderAll() {
     renderGames();
     renderTapes();
-    renderShop();
+    renderShopPeek();
+    $('#shelfTip').textContent = byType('video').length ? 'Pasa el ratón por un cassette' : '';
     renderVotes();
     renderNews();
     renderScores();
@@ -673,7 +725,7 @@
       document.getElementById('videos').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
       return setTimeout(() => playTape(item.id), reduceMotion ? 0 : 600);
     }
-    if (item.type === 'product') return openProduct(item);
+    if (item.type === 'product') { window.location.href = `tienda.html#ver-${encodeURIComponent(item.id)}`; return; }
     const isApp = item.type === 'app';
     const tags = [
       isApp && item.status ? `<span class="tag ${statusClass(item.status)}">${esc(item.status)}</span>` : '',

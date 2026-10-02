@@ -44,7 +44,7 @@
         <li><a href="#juegos">JUEGOS</a></li>
         <li><a href="#videos">VÍDEOS</a></li>
         <li><a href="#noticias">NOTICIAS</a></li>
-        <li><a href="#tienda">TIENDA</a></li>
+        <li><a href="tienda.html" data-transition>TIENDA</a></li>
         <li><a href="#votos">VOTOS</a></li>
         <li><a href="#galeria">GALERÍA</a></li>
         <li><a href="#estudio">ESTUDIO</a></li>
@@ -145,44 +145,58 @@
       </div>
     </section>
 
-    <!-- VÍDEOS: cassettes + TV vieja -->
+    <!-- VÍDEOS: videoclub con estante de cassettes, tele CRT y vídeo VHS -->
     <section class="section section--alt" id="videos">
       <div class="container">
         <div class="section-head reveal">
           <div>
             <p class="eyebrow">Videoclub</p>
             <h2 class="section-title">Vídeos</h2>
-            <p class="section-sub">Elige un cassette y mételo en el vídeo. Tráilers, diarios de desarrollo y algo más que no deberías ver de noche.</p>
+            <p class="section-sub">Saca un cassette del estante y mételo en el vídeo. Tráilers, diarios de desarrollo y algo más que no deberías ver de noche.</p>
           </div>
         </div>
-        <div class="vhs reveal">
-          <div class="tvset">
-            <div class="tv" id="tv">
-              <div class="tv__antenna" aria-hidden="true"><i></i><i></i></div>
-              <div class="tv__body">
-                <div class="tv__screen">
-                  <div class="tv__glass" id="tvGlass">
-                    <div class="tv__static" id="tvStatic" aria-hidden="true"></div>
-                    <p class="tv__osd" id="tvOsd">SIN SEÑAL<br><small>INSERTA UN CASSETTE</small></p>
+        <div class="vclub reveal">
+          <!-- Televisor + vídeo -->
+          <div class="station">
+            <div class="crt" id="tv">
+              <div class="crt__body">
+                <div class="crt__bezel">
+                  <div class="crt__screen" id="tvGlass">
+                    <div class="crt__static" aria-hidden="true"></div>
+                    <div class="crt__osd" id="tvOsd"><b>SIN SEÑAL</b><small>SACA UN CASSETTE DEL ESTANTE</small></div>
+                    <div class="crt__vhs-osd" id="vhsOsd" aria-hidden="true"><span class="tl">▶ PLAY</span><span class="bl" id="vhsTime">SP 0:00:00</span></div>
                   </div>
                 </div>
-                <div class="tv__panel" aria-hidden="true">
-                  <span class="tv__brand">THE&nbsp;THING</span>
-                  <span class="tv__knob"></span>
-                  <span class="tv__knob tv__knob--sm"></span>
-                  <span class="tv__grille"></span>
-                  <span class="tv__led" id="tvLed"></span>
+                <div class="crt__side" aria-hidden="true">
+                  <span class="crt__brand">THE<br>THING</span>
+                  <span class="crt__ch" id="tvCh">--</span>
+                  <span class="crt__btns"><i></i><i></i><i></i></span>
+                  <span class="crt__slits"></span>
+                  <span class="crt__power"><i id="tvLed"></i>POWER</span>
                 </div>
               </div>
+              <div class="crt__base" aria-hidden="true"><span>TRINITHING · COLOR TV</span></div>
             </div>
-            <div class="vcr">
-              <div class="vcr__slot" id="vcrSlot"><span class="vcr__flap"></span></div>
-              <div class="vcr__display" id="vcrDisplay">--:--</div>
-              <button class="vcr__btn" type="button" id="vcrEject" title="Expulsar cassette">⏏ EJECT</button>
+            <div class="vcr" id="vcr">
+              <div class="vcr__left">
+                <span class="vcr__logo">THE THING <b>HQ</b> VHS</span>
+                <div class="vcr__slot" id="vcrSlot"><span class="vcr__flap"></span></div>
+              </div>
+              <div class="vcr__display" id="vcrDisplay"><span class="vcr__mode" id="vcrMode">STOP</span><span id="vcrClock">--:--</span></div>
+              <div class="vcr__keys">
+                <button class="vcr__btn" type="button" id="vcrEject" title="Expulsar">⏏</button>
+                <button class="vcr__btn" type="button" id="vcrStop" title="Parar">■</button>
+              </div>
             </div>
             <p class="now-playing" id="nowPlaying" aria-live="polite"></p>
           </div>
-          <div class="tapes" id="tapes" aria-label="Cassettes"></div>
+
+          <!-- Estante -->
+          <div class="bookcase">
+            <div class="bookcase__sign" aria-hidden="true">VIDEO<span>CLUB</span></div>
+            <div class="shelf" id="tapes" aria-label="Estante de cassettes"></div>
+            <p class="shelf__tip" id="shelfTip" aria-hidden="true"></p>
+          </div>
         </div>
       </div>
     </section>
@@ -216,17 +230,19 @@
       </div>
     </section>
 
-    <!-- TIENDA -->
+    <!-- TIENDA (entrada a la página de la tienda) -->
     <section class="section" id="tienda">
       <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">Merch oficial</p>
-            <h2 class="section-title">Tienda</h2>
-            <p class="section-sub">Lleva a la cosa contigo. Camisetas, tazas y otros objetos malditos.</p>
-          </div>
-        </div>
-        <div class="shop" id="shop"></div>
+        <a class="store-door reveal" href="tienda.html" data-transition>
+          <span class="store-door__sign" aria-hidden="true">MERCH<b>STORE</b></span>
+          <span class="store-door__text">
+            <span class="eyebrow">Merch oficial</span>
+            <span class="store-door__title">Tienda THE THING</span>
+            <span class="store-door__sub">Camisetas, tazas y otros objetos malditos.</span>
+            <span class="btn btn--solid">▶ Entrar a la tienda</span>
+          </span>
+          <span class="store-door__peek" id="shopPeek" aria-hidden="true"></span>
+        </a>
       </div>
     </section>
 

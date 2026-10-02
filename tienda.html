@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tienda — THE THING</title>
+  <meta name="description" content="Merch oficial de THE THING: camisetas, tazas y otros objetos malditos.">
+  <meta name="theme-color" content="#0a0a0b">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Permanent+Marker&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="fx-on store-page">
+  <div class="crt-noise" aria-hidden="true"></div>
+  <div class="crt-roll" aria-hidden="true"></div>
+  <div class="crt-overlay" aria-hidden="true"></div>
+
+  <header class="site-header scrolled">
+    <nav class="nav container" aria-label="Tienda">
+      <a class="brand" href="index.html" data-transition aria-label="THE THING, volver al inicio">
+        <img src="assets/img/logo-small.webp" alt="" width="40" height="44">
+        <span>THE THING<small>MERCH STORE</small></span>
+      </a>
+      <div class="nav__tools">
+        <button class="icon-btn" type="button" data-fx-toggle aria-pressed="true" title="Efecto CRT">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="14"/><path d="M8 22h8M12 18v4"/></svg>
+          <span class="sr-only">Efecto CRT</span>
+        </button>
+        <button class="icon-btn" type="button" data-sound-toggle aria-pressed="false" title="Sonido">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
+          <span class="sr-only">Sonido</span>
+        </button>
+        <a class="btn btn--sm" href="index.html" data-transition>◀ Inicio</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="store-hero">
+      <div class="container">
+        <div class="store-hero__sign" aria-hidden="true">MERCH<b>STORE</b></div>
+        <h1 class="section-title">Tienda oficial</h1>
+        <p class="section-sub">Lleva a la cosa contigo. Camisetas, tazas y otros objetos malditos de THE THING.</p>
+        <div class="seg store-filter" role="group" aria-label="Filtrar">
+          <button type="button" data-filter="all" aria-pressed="true">Todo</button>
+          <button type="button" data-filter="available" aria-pressed="false">Disponible</button>
+          <button type="button" data-filter="soon" aria-pressed="false">Próximamente</button>
+        </div>
+      </div>
+    </section>
+    <section class="section" style="padding-top:20px">
+      <div class="container">
+        <div class="shop" id="shop"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <span>© <span id="year"></span> THE THING · Merch oficial</span>
+      <a href="index.html" data-transition>◀ Volver a la web</a>
+    </div>
+  </footer>
+
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/demo.js"></script>
+  <script src="assets/js/shop.js"></script>
+</body>
+</html>
