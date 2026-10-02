@@ -298,6 +298,8 @@ body.chaos main { animation: chaos .25s infinite steps(2); }
 }
 .site-header.hidden { transform: translateY(-100%); }
 .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 72px; }
+.site-header .nav { max-width: 1480px; }
+.menu { margin: 0 auto; }
 
 .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
 .brand img { width: 40px; height: 44px; object-fit: cover; transition: transform .4s var(--ease-out); }
@@ -805,9 +807,10 @@ body.chaos main { animation: chaos .25s infinite steps(2); }
 
 .acct-btn svg { width: 14px; height: 14px; flex: none; }
 .brand span { white-space: nowrap; }
-@media (max-width: 1320px) {
-  .brand small { display: none; }
-  .menu a { font-size: 20px; padding: 8px 8px 8px 20px; }
+@media (max-width: 1640px) { .brand small { display: none; } }
+@media (max-width: 1440px) {
+  .menu a { font-size: 19px; padding: 8px 6px 8px 18px; }
+  .nav { gap: 10px; }
 }
 @media (max-width: 1100px) {
   .menu a { font-size: 19px; padding: 8px 6px 8px 18px; }
@@ -1176,40 +1179,14 @@ button.notif:hover { box-shadow: inset 0 0 0 2px var(--line-acc); transform: tra
   .spine { --h: 164px; width: 32px; }
 }
 
-/* --------------------------------------------------------------------------
-   Entrada a la tienda (portada)
-   -------------------------------------------------------------------------- */
-
-.store-door {
-  position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: clamp(20px, 4vw, 48px); align-items: center;
-  padding: clamp(24px, 4vw, 44px); text-decoration: none; color: var(--text); overflow: hidden;
-  background:
-    radial-gradient(circle at 15% 50%, rgba(var(--line-rgb), .14), transparent 45%),
-    repeating-linear-gradient(135deg, #111113 0 14px, #141417 14px 28px);
-  box-shadow: inset 0 0 0 2px var(--text); outline: 2px solid var(--line-acc); outline-offset: 5px;
-  transition: transform .35s var(--ease-out), outline-offset .35s var(--ease-out);
-}
-.store-door:hover { transform: translateY(-4px); outline-offset: 9px; }
-.store-door__sign {
-  display: grid; justify-items: center; padding: 14px 18px; border: 6px double var(--line-acc); transform: rotate(-4deg);
-  font-family: var(--pixel); font-size: clamp(14px, 2vw, 22px); color: var(--acc); text-shadow: 0 0 8px var(--acc), 0 0 22px rgba(var(--acc-rgb), .5);
-  animation: neon 6s infinite steps(1);
-}
-.store-door__sign b { font-weight: 400; color: var(--red); text-shadow: 0 0 8px var(--red), 0 0 22px rgba(var(--line-rgb), .5); margin-top: 8px; }
-.store-door__text { display: grid; gap: 10px; justify-items: start; }
-.store-door__text .eyebrow { margin: 0; }
-.store-door__title { font-family: var(--pixel); font-size: clamp(16px, 2.6vw, 28px); line-height: 1.3; }
-.store-door__sub { color: var(--muted); font-size: 14px; }
-.store-door__peek { display: flex; }
-.store-door__peek img, .store-door__peek i {
-  width: 96px; height: 96px; object-fit: cover; margin-left: -28px; border: 4px solid var(--bg); background: #0d0d0f;
-  transform: rotate(var(--r)); box-shadow: 0 10px 20px rgba(0, 0, 0, .6); transition: transform .4s var(--ease-out);
-}
-.store-door:hover .store-door__peek img, .store-door:hover .store-door__peek i { transform: rotate(0deg) translateY(-6px); }
-@media (max-width: 760px) {
-  .store-door { grid-template-columns: 1fr; text-align: left; }
-  .store-door__sign { justify-self: start; }
-  .store-door__peek { display: none; }
+/* Botón de la tienda (junto al de usuario) */
+.store-btn { color: var(--acc); white-space: nowrap; }
+.store-btn svg { width: 15px; height: 15px; flex: none; }
+.store-btn:hover svg { animation: cart-roll .5s var(--ease-out); }
+@keyframes cart-roll { 40% { transform: translateX(4px) rotate(-8deg); } }
+@media (max-width: 600px) {
+  .store-btn { padding: 10px; }
+  .store-btn .store-label { display: none; }
 }
 
 /* --------------------------------------------------------------------------

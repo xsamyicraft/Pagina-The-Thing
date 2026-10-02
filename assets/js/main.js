@@ -687,20 +687,9 @@
   $('#vcrEject').addEventListener('click', () => { if (!busy) ejectTape(); });
   $('#vcrStop').addEventListener('click', () => { if (!busy) ejectTape(); });
 
-  /* Vista previa de productos en la entrada de la tienda */
-  function renderShopPeek() {
-    const peek = $('#shopPeek');
-    if (!peek) return;
-    const items = byType('product').slice(0, 3);
-    peek.innerHTML = items.map((p, i) => (p.image
-      ? `<img src="${esc(p.image)}" alt="" style="--r:${(i - 1) * 7}deg">`
-      : `<img src="assets/img/logo-small.webp" alt="" style="--r:${(i - 1) * 7}deg; object-fit:contain; padding:8px">`)).join('');
-  }
-
   function renderAll() {
     renderGames();
     renderTapes();
-    renderShopPeek();
     $('#shelfTip').textContent = byType('video').length ? 'Pasa el ratón por un cassette' : '';
     renderVotes();
     renderNews();

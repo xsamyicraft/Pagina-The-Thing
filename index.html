@@ -44,7 +44,6 @@
         <li><a href="#juegos">JUEGOS</a></li>
         <li><a href="#videos">VÍDEOS</a></li>
         <li><a href="#noticias">NOTICIAS</a></li>
-        <li><a href="tienda.html" data-transition>TIENDA</a></li>
         <li><a href="#votos">VOTOS</a></li>
         <li><a href="#galeria">GALERÍA</a></li>
         <li><a href="#estudio">ESTUDIO</a></li>
@@ -73,6 +72,10 @@
           <span class="sr-only">Avisos</span>
           <span class="bell__badge" id="bellBadge" hidden>0</span>
         </button>
+        <a class="btn btn--sm store-btn" href="tienda.html" data-transition title="Tienda online (no necesitas cuenta)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L20 8H6.2"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
+          <span class="store-label">Tienda</span>
+        </a>
         <button class="btn btn--sm acct-btn" type="button" id="acctBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
           <span class="acct-label">Entrar</span>
@@ -230,24 +233,8 @@
       </div>
     </section>
 
-    <!-- TIENDA (entrada a la página de la tienda) -->
-    <section class="section" id="tienda">
-      <div class="container">
-        <a class="store-door reveal" href="tienda.html" data-transition>
-          <span class="store-door__sign" aria-hidden="true">MERCH<b>STORE</b></span>
-          <span class="store-door__text">
-            <span class="eyebrow">Merch oficial</span>
-            <span class="store-door__title">Tienda THE THING</span>
-            <span class="store-door__sub">Camisetas, tazas y otros objetos malditos.</span>
-            <span class="btn btn--solid">▶ Entrar a la tienda</span>
-          </span>
-          <span class="store-door__peek" id="shopPeek" aria-hidden="true"></span>
-        </a>
-      </div>
-    </section>
-
     <!-- DATOS -->
-    <section class="section section--alt" id="datos">
+    <section class="section" id="datos">
       <div class="container">
         <div class="section-head reveal">
           <div>
@@ -261,7 +248,7 @@
     </section>
 
     <!-- GALERÍA -->
-    <section class="section" id="galeria">
+    <section class="section section--alt" id="galeria">
       <div class="container">
         <div class="section-head reveal">
           <div>
@@ -275,7 +262,7 @@
     </section>
 
     <!-- ESTUDIO -->
-    <section class="section section--alt" id="estudio">
+    <section class="section" id="estudio">
       <div class="container about">
         <div class="reveal">
           <p class="eyebrow">Ficha de personaje</p>
@@ -300,7 +287,7 @@
     </section>
 
     <!-- CONTINUAR / CONTACTO -->
-    <section class="section continue" id="contacto">
+    <section class="section section--alt continue" id="contacto">
       <div class="container reveal">
         <p class="eyebrow">Game over?</p>
         <h2 class="section-title">¿Continuar?</h2>

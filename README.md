@@ -7,8 +7,8 @@ Estética retro: pantalla CRT, cintas VHS, menús de videojuego y pixel art.
   cinta de titulares, juegos/apps (cartuchos), noticias (cintas VHS), datos
   (marcador arcade "High scores"), galería (polaroids con visor), ficha del
   estudio y sección de contacto.
-- **Tienda** (`tienda.html`): página propia de merch a la que se entra desde el
-  botón de la portada o el menú.
+- **Tienda** (`tienda.html`): página propia de merch. Se entra con el botón
+  **🛒 Tienda** de la barra superior, junto al de usuario; no hace falta cuenta.
 - **Videoclub**: estante de madera con los lomos de los cassettes; al elegir uno
   sale del estante, entra en el vídeo VHS y se ve en un televisor CRT de los 80.
   Los vídeos de YouTube solo se reproducen con la web en un servidor (Hostinger o
