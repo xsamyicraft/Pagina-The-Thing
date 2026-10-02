@@ -5,3 +5,4 @@ uploads/*
 !uploads/index.php
 .DS_Store
 data/sessions/
+data/ultimo-pin.php

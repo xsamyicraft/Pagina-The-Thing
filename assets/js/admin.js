@@ -16,7 +16,7 @@
     news: {
       label: 'Noticias', one: 'noticia', nuevo: 'Nueva noticia', icon: '✉',
       desc: 'Anuncios, diarios de desarrollo y novedades del estudio.',
-      fields: ['title', 'summary', 'body', 'image', 'link', 'featured', 'notify'],
+      fields: ['title', 'game', 'summary', 'body', 'image', 'link', 'featured', 'notify'],
     },
     data: {
       label: 'Datos', one: 'dato', nuevo: 'Nuevo dato', icon: '#',
@@ -267,7 +267,8 @@
     $('#userEmail').textContent = user;
     await loadContent();
     const fromHash = location.hash.slice(1);
-    setTab(TYPES[fromHash] || ['account', 'stats', 'community'].includes(fromHash) ? fromHash : 'overview');
+    setTab(TYPES[fromHash] || ['account', 'stats', 'community', 'support', 'settings'].includes(fromHash) ? fromHash : 'overview');
+    refreshBadges();
   }
 
   /** Si la sesión caducó, vuelve al login. */
@@ -309,6 +310,8 @@
     if (tab === 'overview') panel.innerHTML = renderOverview();
     else if (tab === 'stats') return renderStats(panel);
     else if (tab === 'community') return renderCommunity(panel);
+    else if (tab === 'support') return renderSupport(panel);
+    else if (tab === 'settings') return renderSettings(panel);
     else if (tab === 'account') panel.innerHTML = renderAccount();
     else panel.innerHTML = renderList(tab);
     if (tab === 'account') bindAccount();
@@ -409,6 +412,13 @@
     switch (name) {
       case 'title':
         return `<label class="field"><span>${esc(labels.title)}</span><input name="title" maxlength="140" required value="${v('title')}" data-autofocus></label>`;
+      case 'game': {
+        const games = content.filter((i) => i.type === 'app');
+        return `<label class="field"><span>Juego relacionado (pestañas de Noticias)</span><select name="game">
+          <option value="">— General (sin juego) —</option>
+          ${games.map((g) => `<option value="${esc(g.id)}"${g.id === item.game ? ' selected' : ''}>${esc(g.title)}</option>`).join('')}
+        </select><small>La noticia aparecerá en la pestaña de ese juego en la página de Noticias.</small></label>`;
+      }
       case 'summary':
         return `<label class="field"><span>${esc(labels.summary)}</span><input name="summary" maxlength="400" value="${v('summary')}"></label>`;
       case 'body':
@@ -630,6 +640,7 @@
         price: get('price'),
         currency: get('currency'),
         sizes: get('sizes'),
+        game: get('game'),
         notify: Boolean(form.elements.notify && form.elements.notify.checked),
       };
       if (!payload.title) return showErr('El título es obligatorio');
@@ -1097,6 +1108,7 @@
     const subscribed = members.filter((m) => m.emailNotify).length;
     const linkable = content.filter((i) => ['app', 'news', 'image'].includes(i.type));
     const starsTxt = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+    const reported = comments.filter((c) => c.reports && c.reports.length);
 
     panel.innerHTML = `
       <div class="panel-head"><div><h1>@ COMUNIDAD</h1><p>Jugadores registrados, sus reseñas y los avisos que les envías.</p></div></div>
@@ -1117,6 +1129,20 @@
         <p class="form__error" id="notifyError" role="alert"></p>
         <div class="form__actions"><button class="btn btn--solid" type="submit">▶ Enviar aviso</button></div>
       </form>
+
+      ${reported.length ? `<div class="box notice">
+        <h2>⚑ DENUNCIADOS (${reported.length})</h2>
+        <p class="form__hint">Comentarios que los jugadores marcaron. Borra los que incumplan las normas o descarta la denuncia si están bien.</p>
+        <div class="list">${reported.map((c) => `
+          <div class="row row--text row--alert">
+            <div style="min-width:0">
+              <p class="row__title">${esc(c.name)} ${c.rating ? `<span class="stars-txt">${starsTxt(c.rating)}</span>` : ''}</p>
+              <div class="row__meta"><span class="tag tag--status">${c.reports.length} denuncia${c.reports.length === 1 ? '' : 's'}</span><span>${esc([...new Set(c.reports)].join(', '))}</span><span class="tag">${esc(c.itemTitle)}</span></div>
+              <p class="row__text">${esc(c.text)}</p>
+            </div>
+            <div class="row__actions"><button class="btn btn--sm" type="button" data-dismiss="${esc(c.id)}">Descartar</button><button class="btn btn--sm btn--danger" type="button" data-del-comment="${esc(c.id)}">Borrar</button></div>
+          </div>`).join('')}</div>
+      </div>` : ''}
 
       <div class="box">
         <h2>RESEÑAS Y COMENTARIOS</h2>
@@ -1169,6 +1195,14 @@
         renderCommunity(panel);
       } catch (ex) { if (!handleAuthError(ex)) toast(ex.message, 'error'); }
     }));
+    panel.querySelectorAll('[data-dismiss]').forEach((b) => b.addEventListener('click', async () => {
+      try {
+        await api('api/stats.php?action=dismiss_reports', { json: { id: b.dataset.dismiss } });
+        toast('Denuncia descartada');
+        renderCommunity(panel);
+        refreshBadges();
+      } catch (ex) { if (!handleAuthError(ex)) toast(ex.message, 'error'); }
+    }));
     panel.querySelectorAll('[data-del-member]').forEach((b) => b.addEventListener('click', async () => {
       if (!window.confirm(`¿Borrar la cuenta de ${b.dataset.name}? También se borran sus reseñas y votos.`)) return;
       try {
@@ -1177,6 +1211,186 @@
         renderCommunity(panel);
       } catch (ex) { if (!handleAuthError(ex)) toast(ex.message, 'error'); }
     }));
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Avisos pendientes en el menú (consultas abiertas y denuncias)       */
+  /* ------------------------------------------------------------------ */
+
+  async function refreshBadges() {
+    try {
+      const [sup, comments] = await Promise.all([
+        api('api/support.php?action=list'),
+        api('api/stats.php?action=comments'),
+      ]);
+      const open = sup.tickets.filter((t) => t.status === 'open').length;
+      const reported = comments.filter((c) => c.reports && c.reports.length).length;
+      const set = (el, n) => { el.hidden = !n; el.textContent = n > 9 ? '9+' : String(n); };
+      set($('#supportBadge'), open);
+      set($('#reportBadge'), reported);
+    } catch { /* sin conexión */ }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Soporte                                                             */
+  /* ------------------------------------------------------------------ */
+
+  const ticketModal = createModal();
+  const TICKET_STATUS = { open: ['ABIERTA', 'tag--status'], answered: ['RESPONDIDA', 'tag--live'], closed: ['CERRADA', ''] };
+  let supportFilter = 'open';
+  let tickets = [];
+
+  async function renderSupport(panel) {
+    panelLoading(panel, '? SOPORTE');
+    try {
+      tickets = (await api('api/support.php?action=list')).tickets;
+    } catch (err) {
+      if (!handleAuthError(err)) panel.innerHTML = `<div class="empty">✖ ${esc(err.message)}</div>`;
+      return;
+    }
+    if (tab !== 'support') return;
+    const count = (s) => tickets.filter((t) => t.status === s).length;
+    const regrets = tickets.filter((t) => t.category === 'arrepentimiento' && t.status === 'open').length;
+    const list = tickets.filter((t) => supportFilter === 'all' || t.status === supportFilter);
+    panel.innerHTML = `
+      <div class="panel-head"><div><h1>? SOPORTE</h1><p>Consultas que llegan desde la página de Soporte. Tu respuesta le llega por correo a la persona, con su código de seguimiento.</p></div></div>
+      <div class="kpis">
+        <div class="kpi"><span>Abiertas</span><b>${count('open')}</b><small>esperan respuesta</small></div>
+        <div class="kpi"><span>Respondidas</span><b>${count('answered')}</b></div>
+        <div class="kpi"><span>Cerradas</span><b>${count('closed')}</b></div>
+        <div class="kpi"><span>Arrepentimientos</span><b>${regrets}</b><small>abiertos · responder cuanto antes</small></div>
+      </div>
+      <div class="app-tabs" role="tablist" aria-label="Filtrar consultas">
+        ${[['open', 'Abiertas'], ['answered', 'Respondidas'], ['closed', 'Cerradas'], ['all', 'Todas']].map(([k, l]) => `<button type="button" role="tab" data-sf="${k}" aria-selected="${k === supportFilter}">${l}</button>`).join('')}
+      </div>
+      <div class="box">
+        <div class="list">${list.map((t, i) => {
+          const [label, cls] = TICKET_STATUS[t.status] || TICKET_STATUS.open;
+          return `
+          <div class="row row--text${t.category === 'arrepentimiento' ? ' row--alert' : ''}" style="--d:${Math.min(i, 12) * 0.03}s">
+            <div style="min-width:0">
+              <p class="row__title">${esc(t.subject)}</p>
+              <div class="row__meta"><span class="tag ${cls}">${label}</span><span>${esc(t.code)}</span><span class="tag">${esc(t.categoryLabel)}</span>
+                <span>${esc(t.name)} · ${esc(t.email)}</span><span>${esc(new Date(t.updatedAt).toLocaleString('es'))}</span></div>
+              <p class="row__text">${esc(t.messages[t.messages.length - 1].text.slice(0, 220))}</p>
+            </div>
+            <div class="row__actions"><button class="btn btn--sm${t.status === 'open' ? ' btn--solid' : ''}" type="button" data-ticket="${esc(t.id)}">Abrir</button></div>
+          </div>`;
+        }).join('') || '<div class="empty">NO HAY CONSULTAS AQUÍ</div>'}</div>
+      </div>`;
+    panel.querySelectorAll('[data-sf]').forEach((b) => b.addEventListener('click', () => { supportFilter = b.dataset.sf; beep('blip'); renderSupport(panel); }));
+    panel.querySelectorAll('[data-ticket]').forEach((b) => b.addEventListener('click', () => openTicket(tickets.find((t) => t.id === b.dataset.ticket))));
+    refreshBadges();
+  }
+
+  function openTicket(t) {
+    if (!t) return;
+    const [label, cls] = TICKET_STATUS[t.status] || TICKET_STATUS.open;
+    ticketModal.open(`
+      <button class="icon-btn modal__close" type="button" data-close title="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg><span class="sr-only">Cerrar</span>
+      </button>
+      <div class="editor form">
+        <h2>${esc(t.code)} · ${esc(t.subject)}</h2>
+        <div class="row__meta"><span class="tag ${cls}">${label}</span><span class="tag">${esc(t.categoryLabel)}</span><span>${esc(t.name)} · <a href="mailto:${esc(t.email)}">${esc(t.email)}</a></span></div>
+        ${t.category === 'arrepentimiento' ? '<p class="form__hint" style="color:var(--amber)">Solicitud de arrepentimiento de compra: responde con los pasos de devolución y el reembolso dentro del plazo legal.</p>' : ''}
+        <div class="thread">${t.messages.map((m) => `
+          <div class="msg msg--${m.from}"><p class="msg__who">${m.from === 'staff' ? '■ EQUIPO' : '&gt; ' + esc(t.name.toUpperCase())} · ${esc(new Date(m.at).toLocaleString('es'))}</p><p class="msg__text">${esc(m.text)}</p></div>`).join('')}</div>
+        <form id="answerForm" novalidate>
+          <label class="field"><span>TU RESPUESTA (se envía por correo)</span><textarea name="message" maxlength="6000" required data-autofocus></textarea></label>
+          <label class="check"><input type="checkbox" name="close"> Marcar como resuelta (cerrar consulta)</label>
+          <p class="form__error" id="answerError" role="alert"></p>
+          <div class="form__actions">
+            <button class="btn btn--sm btn--danger" type="button" id="ticketDelete">Borrar</button>
+            <button class="btn btn--sm" type="button" id="ticketToggle">${t.status === 'closed' ? 'Reabrir' : 'Cerrar sin responder'}</button>
+            <button class="btn btn--solid" type="submit">▶ Enviar respuesta</button>
+          </div>
+        </form>
+      </div>`);
+    const panel = $('#panel');
+    $('#answerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const msg = form.message.value.trim();
+      if (msg.length < 2) { $('#answerError').textContent = '✖ Escribe la respuesta'; return beep('error'); }
+      try {
+        const res = await api('api/support.php?action=answer', { json: { id: t.id, message: msg, close: form.close.checked } });
+        ticketModal.close();
+        toast(res.mailed ? 'Respuesta enviada por correo' : 'Respuesta guardada (el correo no salió: revisa el remitente en config.php)');
+        renderSupport(panel);
+      } catch (ex) { if (!handleAuthError(ex)) { $('#answerError').textContent = `✖ ${ex.message}`; beep('error'); } }
+    });
+    $('#ticketToggle').addEventListener('click', async () => {
+      try {
+        await api('api/support.php?action=status', { json: { id: t.id, status: t.status === 'closed' ? 'open' : 'closed' } });
+        ticketModal.close();
+        toast(t.status === 'closed' ? 'Consulta reabierta' : 'Consulta cerrada');
+        renderSupport(panel);
+      } catch (ex) { if (!handleAuthError(ex)) toast(ex.message, 'error'); }
+    });
+    $('#ticketDelete').addEventListener('click', async () => {
+      if (!window.confirm(`¿Borrar la consulta ${t.code}? No se puede deshacer.`)) return;
+      try {
+        await api('api/support.php?action=delete', { json: { id: t.id } });
+        ticketModal.close();
+        toast('Consulta borrada');
+        renderSupport(panel);
+      } catch (ex) { if (!handleAuthError(ex)) toast(ex.message, 'error'); }
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Empresa y legal: datos que aparecen en las páginas legales y el pie */
+  /* ------------------------------------------------------------------ */
+
+  const COUNTRY_OPTIONS = [['', '— Elige —'], ['AR', 'Argentina'], ['MX', 'México'], ['ES', 'España'], ['CO', 'Colombia'], ['CL', 'Chile'], ['PE', 'Perú'], ['UY', 'Uruguay'], ['US', 'Estados Unidos'], ['OTRO', 'Otro']];
+
+  async function renderSettings(panel) {
+    panelLoading(panel, '§ EMPRESA Y LEGAL');
+    let s;
+    try { s = await api('api/settings.php'); } catch (err) {
+      if (!handleAuthError(err)) panel.innerHTML = `<div class="empty">✖ ${esc(err.message)}</div>`;
+      return;
+    }
+    if (tab !== 'settings') return;
+    const v = (k) => esc(s[k] || '');
+    const input = (k, label, ph = '', type = 'text') => `<label class="field"><span>${label}</span><input name="${k}" type="${type}" value="${v(k)}" placeholder="${esc(ph)}"></label>`;
+    const missing = ['legalName', 'taxId', 'address', 'country', 'jurisdiction'].filter((k) => !s[k]);
+    panel.innerHTML = `
+      <div class="panel-head"><div><h1>§ EMPRESA Y LEGAL</h1><p>Estos datos rellenan solos los Términos, la Privacidad, el Aviso legal y el pie de página.</p></div></div>
+      ${missing.length ? `<div class="box notice"><h2>⚠ FALTAN DATOS OBLIGATORIOS</h2><p>Mientras no los completes, las páginas legales muestran avisos en naranja como <span class="todo">[RAZÓN SOCIAL]</span>. Los textos legales son una plantilla: conviene que un abogado de tu país los revise.</p></div>` : ''}
+      <form class="box form" id="settingsForm" novalidate>
+        <h2>DATOS DEL TITULAR</h2>
+        <p class="form__hint">Persona o empresa responsable de la web (la que figura ante Hacienda / AFIP / SAT).</p>
+        <div class="form__row">${input('legalName', 'RAZÓN SOCIAL O NOMBRE COMPLETO *', 'THE THING Games S.A.S.')}${input('tradeName', 'NOMBRE COMERCIAL', 'THE THING')}</div>
+        <div class="form__row">${input('taxId', 'IDENTIFICACIÓN FISCAL (CUIT / NIF / RFC…) *', '30-12345678-9')}
+          <label class="field"><span>PAÍS *</span><select name="country">${COUNTRY_OPTIONS.map(([k, l]) => `<option value="${k}"${(s.country || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>
+        ${input('address', 'DOMICILIO *', 'Calle 123, Ciudad, Provincia, CP')}
+        <div class="form__row">${input('jurisdiction', 'TRIBUNALES COMPETENTES *', 'Ciudad Autónoma de Buenos Aires, Argentina')}
+          <label class="field"><span>EDAD MÍNIMA PARA CREAR CUENTA</span><select name="minAge">${['13', '14', '16', '18'].map((a) => `<option${(s.minAge || '13') === a ? ' selected' : ''}>${a}</option>`).join('')}</select></label></div>
+        ${input('registry', 'DATOS REGISTRALES (opcional)', 'Inscripción en el Registro Mercantil / IGJ…')}
+        <h2 style="margin-top:24px">CORREOS PÚBLICOS</h2>
+        <div class="form__row">${input('email', 'CONTACTO GENERAL', 'contacto@thethinggame.com', 'email')}${input('supportEmail', 'SOPORTE', 'soporte@thethinggame.com', 'email')}</div>
+        ${input('privacyEmail', 'PRIVACIDAD (si es distinto)', 'privacidad@thethinggame.com', 'email')}
+        <h2 style="margin-top:24px">REDES SOCIALES (pie de página)</h2>
+        <p class="form__hint">Pega el enlace completo (https://…). Las que dejes vacías no se muestran.</p>
+        <div class="form__row">${input('youtube', 'YOUTUBE', 'https://youtube.com/@…', 'url')}${input('tiktok', 'TIKTOK', 'https://tiktok.com/@…', 'url')}</div>
+        <div class="form__row">${input('instagram', 'INSTAGRAM', 'https://instagram.com/…', 'url')}${input('x', 'X (TWITTER)', 'https://x.com/…', 'url')}</div>
+        <div class="form__row">${input('discord', 'DISCORD', 'https://discord.gg/…', 'url')}${input('facebook', 'FACEBOOK', 'https://facebook.com/…', 'url')}</div>
+        ${input('twitch', 'TWITCH', 'https://twitch.tv/…', 'url')}
+        <p class="form__error" id="settingsError" role="alert"></p>
+        <div class="form__actions"><a class="btn" href="aviso-legal.html" target="_blank" rel="noopener">Ver aviso legal ↗</a><button class="btn btn--solid" type="submit">▶ Guardar</button></div>
+      </form>`;
+    $('#settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const data = Object.fromEntries([...form.elements].filter((el) => el.name).map((el) => [el.name, el.value.trim()]));
+      try {
+        await api('api/settings.php?action=save', { json: data });
+        toast('Datos guardados · ya aparecen en las páginas legales');
+        renderSettings(panel);
+      } catch (ex) { if (!handleAuthError(ex)) { $('#settingsError').textContent = `✖ ${ex.message}`; beep('error'); } }
+    });
   }
 
   boot();

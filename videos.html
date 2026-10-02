@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vídeos — THE THING</title>
+  <meta name="description" content="El videoclub de THE THING: tráilers, diarios de desarrollo y vídeos del estudio en una tele CRT.">
+  <meta name="theme-color" content="#0a0a0b">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="THE THING">
+  <meta property="og:title" content="Vídeos — THE THING">
+  <meta property="og:description" content="El videoclub de THE THING: tráilers, diarios de desarrollo y vídeos del estudio en una tele CRT.">
+  <meta property="og:image" content="https://thethinggame.com/assets/img/logo-email.png">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/css/style.css?v=5">
+</head>
+<body class="fx-on" data-page="videos">
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+  <div class="crt-noise" aria-hidden="true"></div>
+  <div class="crt-roll" aria-hidden="true"></div>
+  <div class="crt-overlay" aria-hidden="true"></div>
+
+  <header id="header"></header>
+
+  <main id="main">
+    <section class="page-hero">
+      <div class="page-hero__grid" aria-hidden="true"></div>
+      <div class="container">
+        <nav class="crumbs" aria-label="Estás en"><a href="index.html" data-transition>INICIO</a><span aria-hidden="true">/</span><span aria-current="page">VÍDEOS</span></nav>
+        <p class="eyebrow">Videoclub</p>
+        <h1 class="page-title glitch" data-text="VIDEOCLUB">VIDEOCLUB</h1>
+        <p class="section-sub">Elige un cassette del estante y se reproduce al instante en la tele. Tráilers, diarios de desarrollo y algo más que no deberías ver de noche.</p>
+      </div>
+    </section>
+
+    <section class="section section--tight" id="videos">
+      <div class="container">
+        <div class="vclub">
+          <div class="station">
+            <div class="crt" id="tv">
+              <div class="crt__body">
+                <div class="crt__bezel">
+                  <div class="crt__screen" id="tvGlass">
+                    <div class="crt__static" aria-hidden="true"></div>
+                    <div class="crt__osd" id="tvOsd"><b>SIN SEÑAL</b><small>SACA UN CASSETTE DEL ESTANTE</small></div>
+                    <div class="crt__vhs-osd" id="vhsOsd" aria-hidden="true"><span class="tl">▶ PLAY</span><span class="bl" id="vhsTime">SP 0:00:00</span></div>
+                  </div>
+                </div>
+                <div class="crt__side" aria-hidden="true">
+                  <span class="crt__brand">THE<br>THING</span>
+                  <span class="crt__ch" id="tvCh">--</span>
+                  <span class="crt__btns"><i></i><i></i><i></i></span>
+                  <span class="crt__slits"></span>
+                  <span class="crt__power"><i id="tvLed"></i>POWER</span>
+                </div>
+              </div>
+              <div class="crt__base" aria-hidden="true"><span>TRINITHING · COLOR TV</span></div>
+            </div>
+            <div class="vcr" id="vcr">
+              <div class="vcr__left">
+                <span class="vcr__logo">THE THING <b>HQ</b> VHS</span>
+                <div class="vcr__slot" id="vcrSlot"><span class="vcr__flap"></span></div>
+              </div>
+              <div class="vcr__display" id="vcrDisplay"><span class="vcr__mode" id="vcrMode">STOP</span><span id="vcrClock">--:--</span></div>
+              <div class="vcr__keys">
+                <button class="vcr__btn" type="button" id="vcrEject" title="Expulsar">⏏</button>
+                <button class="vcr__btn" type="button" id="vcrStop" title="Parar">■</button>
+              </div>
+            </div>
+            <p class="now-playing" id="nowPlaying" aria-live="polite"></p>
+          </div>
+
+          <div class="bookcase">
+            <div class="bookcase__sign" aria-hidden="true">VIDEO<span>CLUB</span></div>
+            <div class="shelf" id="tapes" aria-label="Estante de cassettes"></div>
+            <p class="shelf__tip" id="shelfTip" aria-hidden="true"></p>
+          </div>
+        </div>
+        <p class="media-note">Los vídeos de YouTube y Vimeo solo se cargan si lo permites en el <button type="button" class="linkish" data-cookie-settings>aviso de cookies</button>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer id="footer"></footer>
+
+  <script src="assets/js/common.js?v=5"></script>
+  <script src="assets/js/demo.js?v=5"></script>
+  <script src="assets/js/layout.js?v=5"></script>
+  <script src="assets/js/captcha.js?v=5"></script>
+  <script src="assets/js/account.js?v=5"></script>
+  <script src="assets/js/main.js?v=5"></script>
+</body>
+</html>

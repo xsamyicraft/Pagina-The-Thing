@@ -5,8 +5,6 @@
   const { api, escapeHtml: esc, formatText, beep, createModal, reduceMotion } = window.TT;
   const $ = (sel, root = document) => root.querySelector(sel);
 
-  window.TT.initCommon();
-  $('#year').textContent = new Date().getFullYear();
 
   const CONTACT = 'contacto@thethinggame.com';
   const CURRENCIES = { USD: 'en-US', MXN: 'es-MX', EUR: 'es-ES', ARS: 'es-AR', COP: 'es-CO', CLP: 'es-CL', PEN: 'es-PE' };
@@ -74,6 +72,9 @@
             : `<a class="btn btn--solid" id="buyBtn" href="#" target="_blank" rel="noopener noreferrer">🛒 ${p.link ? 'Comprar' : 'Pedir por correo'}</a>`}
           <button class="btn" type="button" data-close>◀ Seguir mirando</button>
         </div>
+        <p class="buy-note">Precios con impuestos incluidos salvo que se indique lo contrario. Gastos de envío aparte, te los confirmamos antes del pago.
+          Puedes arrepentirte de tu compra dentro del plazo legal desde el <a href="soporte.html?tipo=arrepentimiento#contacto">botón de arrepentimiento</a>.
+          <a href="terminos.html#compras">Condiciones de compra</a></p>
       </article>`, () => history.replaceState(null, '', location.pathname + location.search));
     history.replaceState(null, '', `#ver-${p.id}`);
     const buy = document.getElementById('buyBtn');
@@ -113,6 +114,13 @@
       render();
     }
   });
+
+  window.TT.openItem = (id) => {
+    const p = products.find((x) => x.id === id);
+    if (!p) return false;
+    openProduct(p);
+    return true;
+  };
 
   api('api/content.php?type=product')
     .then((items) => { products = items; })

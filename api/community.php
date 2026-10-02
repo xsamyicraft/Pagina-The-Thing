@@ -6,6 +6,7 @@
  *   POST community.php?action=comment              → { item, text, rating (1-5, solo juegos) }
  *   POST community.php?action=delete_comment       → { id } (autor o administrador)
  *   POST community.php?action=vote                 → { category: best|played, item }
+ *   POST community.php?action=report               → { id, reason } denuncia un comentario
  */
 
 declare(strict_types=1);
@@ -64,6 +65,9 @@ if ($action === 'delete_comment') {
             if ($c['id'] !== $cid) continue;
             if (!$isAdmin && $c['member'] !== $memberId) return 'forbidden';
             array_splice($db['comments'], $k, 1);
+            $db['reports'] = array_values(array_filter($db['reports'], function ($r) use ($cid) {
+                return $r['comment'] !== $cid;
+            }));
             return 'ok';
         }
         return 'missing';
@@ -110,6 +114,26 @@ if ($action === 'comment') {
     if ($res === 'rating') fail(400, 'Elige de 1 a 5 estrellas');
     if ($res === 'limited') fail(429, 'Vas muy rápido. Espera unos minutos.');
     respond(201, $res);
+}
+
+if ($action === 'report') {
+    $in = read_json();
+    $cid = preg_replace('/[^\w-]/', '', (string) ($in['id'] ?? ''));
+    $reasons = ['spam' => 'Spam o publicidad', 'ofensivo' => 'Insultos u odio', 'acoso' => 'Acoso', 'spoiler' => 'Spoiler', 'ilegal' => 'Contenido ilegal', 'otro' => 'Otro motivo'];
+    $reason = $reasons[(string) ($in['reason'] ?? '')] ?? null;
+    if (!$reason) fail(400, 'Elige un motivo');
+    $res = with_db(function (array &$db) use ($cid, $reason, $memberId) {
+        if (rate_limited($db, 'report:' . $memberId, 10, 3600)) return 'limited';
+        $found = false;
+        foreach ($db['comments'] as $c) if ($c['id'] === $cid) $found = true;
+        if (!$found) return 'missing';
+        foreach ($db['reports'] as $r) if ($r['comment'] === $cid && $r['member'] === $memberId) return 'ok';
+        $db['reports'][] = ['id' => new_id(), 'comment' => $cid, 'member' => $memberId, 'reason' => $reason, 'createdAt' => now_iso()];
+        return 'ok';
+    }, true);
+    if ($res === 'limited') fail(429, 'Enviaste muchas denuncias. Espera un rato.');
+    if ($res === 'missing') fail(404, 'Ese comentario ya no existe');
+    respond(200, ['ok' => true]);
 }
 
 if ($action === 'vote') {

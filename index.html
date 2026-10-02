@@ -6,90 +6,35 @@
   <title>THE THING — Estudio de videojuegos</title>
   <meta name="description" content="THE THING es un estudio independiente de videojuegos. Juegos raros, memorables y con alma de cartucho viejo.">
   <meta name="theme-color" content="#0a0a0b">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="THE THING">
   <meta property="og:title" content="THE THING — Estudio de videojuegos">
-  <meta property="og:description" content="Juegos raros, memorables y con alma de cartucho viejo.">
-  <meta property="og:image" content="assets/img/logo.webp">
+  <meta property="og:description" content="THE THING es un estudio independiente de videojuegos. Juegos raros, memorables y con alma de cartucho viejo.">
+  <meta property="og:image" content="https://thethinggame.com/assets/img/logo-email.png">
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Permanent+Marker&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css?v=5">
 </head>
-<body class="fx-on">
-  <a class="sr-only" href="#juegos">Saltar al contenido</a>
-
-  <!-- Pantalla de arranque estilo BIOS -->
-  <div class="boot" id="boot" aria-hidden="true">
-    <div class="boot__bios" id="bootBios"></div>
-    <div class="boot__center">
-      <img class="boot__logo" id="bootLogo" src="assets/img/logo.webp" alt="">
-      <div class="boot__bar" id="bootBar"><span></span></div>
-      <div class="boot__press" id="bootPress">PRESIONA START</div>
-    </div>
-    <button class="boot__skip" id="bootSkip" type="button">SALTAR &gt;&gt;</button>
-  </div>
-
+<body class="fx-on" data-page="home">
+  <a class="skip-link" href="#main">Saltar al contenido</a>
   <div class="crt-noise" aria-hidden="true"></div>
   <div class="crt-roll" aria-hidden="true"></div>
   <div class="crt-overlay" aria-hidden="true"></div>
 
-  <header class="site-header" id="header">
-    <nav class="nav container" aria-label="Principal">
-      <a class="brand" href="#inicio" aria-label="THE THING, volver al inicio">
-        <img src="assets/img/logo-small.webp" alt="" width="40" height="44">
-        <span>THE THING<small>GAME STUDIO</small></span>
-      </a>
-      <ul class="menu" id="menu">
-        <li><a href="#juegos">JUEGOS</a></li>
-        <li><a href="#videos">VÍDEOS</a></li>
-        <li><a href="#noticias">NOTICIAS</a></li>
-        <li><a href="#votos">VOTOS</a></li>
-        <li><a href="#galeria">GALERÍA</a></li>
-        <li><a href="#estudio">ESTUDIO</a></li>
-        <li class="menu__extras">
-          <button class="icon-btn" type="button" data-fx-toggle aria-pressed="true" title="Efecto CRT">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="14"/><path d="M8 22h8M12 18v4"/></svg>
-            <span class="sr-only">Efecto CRT</span>
-          </button>
-          <button class="icon-btn" type="button" data-sound-toggle aria-pressed="false" title="Sonido">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
-            <span class="sr-only">Sonido</span>
-          </button>
-        </li>
-      </ul>
-      <div class="nav__tools">
-        <button class="icon-btn fx-tool" type="button" data-fx-toggle aria-pressed="true" title="Efecto CRT">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="14"/><path d="M8 22h8M12 18v4"/></svg>
-          <span class="sr-only">Activar o desactivar efecto CRT</span>
-        </button>
-        <button class="icon-btn fx-tool" type="button" data-sound-toggle aria-pressed="false" title="Sonido">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
-          <span class="sr-only">Activar o desactivar sonido</span>
-        </button>
-        <button class="icon-btn bell" type="button" id="bellBtn" title="Avisos" hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-          <span class="sr-only">Avisos</span>
-          <span class="bell__badge" id="bellBadge" hidden>0</span>
-        </button>
-        <a class="btn btn--sm store-btn" href="tienda.html" data-transition title="Tienda online (no necesitas cuenta)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L20 8H6.2"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
-          <span class="store-label">Tienda</span>
-        </a>
-        <button class="btn btn--sm acct-btn" type="button" id="acctBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-          <span class="acct-label">Entrar</span>
-        </button>
-        <button class="icon-btn nav__toggle" type="button" id="menuToggle" aria-controls="menu" aria-expanded="false" title="Menú">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-          <span class="sr-only">Abrir menú</span>
-        </button>
-      </div>
-    </nav>
-  </header>
+  <header id="header"></header>
 
-  <main>
-    <!-- HERO -->
+  <main id="main">
+    <!-- Pantalla de arranque estilo BIOS -->
+    <div class="boot" id="boot" aria-hidden="true">
+      <div class="boot__bios" id="bootBios"></div>
+      <div class="boot__center">
+        <img class="boot__logo" id="bootLogo" src="assets/img/logo.webp" alt="">
+        <div class="boot__bar" id="bootBar"><span></span></div>
+        <div class="boot__press" id="bootPress">PRESIONA START</div>
+      </div>
+      <button class="boot__skip" id="bootSkip" type="button">SALTAR &gt;&gt;</button>
+    </div>
+
     <section class="hero" id="inicio">
       <div class="hero__glow" aria-hidden="true"></div>
       <div class="hero__grid" aria-hidden="true"></div>
@@ -106,8 +51,8 @@
           </h1>
           <p class="hero__lead"><span id="typed"></span><span class="caret" aria-hidden="true"></span></p>
           <div class="hero__cta">
-            <a class="btn btn--solid" href="#juegos">▶ Ver juegos</a>
-            <a class="btn" href="#noticias">Últimas noticias</a>
+            <a class="btn btn--solid" href="juegos.html" data-transition>▶ Ver juegos</a>
+            <a class="btn" href="noticias.html" data-transition>Últimas noticias</a>
           </div>
         </div>
         <div class="hero__art-wrap">
@@ -124,117 +69,61 @@
           </div>
         </div>
       </div>
-      <a class="scroll-hint" href="#juegos">PRESIONA ▼<br><span class="blink">START</span></a>
+      <a class="scroll-hint" href="#destacado">PRESIONA ▼<br><span class="blink">START</span></a>
     </section>
 
-    <!-- CINTA DE NOTICIAS -->
-    <div class="ticker-wrap">
-      <div class="ticker" aria-label="Titulares">
-        <div class="ticker__track" id="ticker"></div>
-      </div>
+    <!-- Cinta de titulares -->
+    <div class="ticker" aria-label="Titulares">
+      <div class="ticker__track" id="ticker"></div>
     </div>
 
-    <!-- JUEGOS / APPS -->
-    <section class="section" id="juegos">
+    <section class="section" id="destacado">
       <div class="container">
         <div class="section-head reveal">
           <div>
             <p class="eyebrow">Player 1 — Select</p>
-            <h2 class="section-title">Selecciona tu juego</h2>
-            <p class="section-sub">Nuestros juegos y aplicaciones: los que ya puedes jugar y los que se están cocinando en el laboratorio.</p>
+            <h2 class="section-title">Juego destacado</h2>
           </div>
+          <a class="btn btn--sm" href="juegos.html" data-transition>Todos los juegos ▶</a>
         </div>
-        <div class="games" id="games"></div>
+        <div id="featured"></div>
       </div>
     </section>
 
-    <!-- VÍDEOS: videoclub con estante de cassettes, tele CRT y vídeo VHS -->
-    <section class="section section--alt" id="videos">
-      <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">Videoclub</p>
-            <h2 class="section-title">Vídeos</h2>
-            <p class="section-sub">Saca un cassette del estante y mételo en el vídeo. Tráilers, diarios de desarrollo y algo más que no deberías ver de noche.</p>
-          </div>
-        </div>
-        <div class="vclub reveal">
-          <!-- Televisor + vídeo -->
-          <div class="station">
-            <div class="crt" id="tv">
-              <div class="crt__body">
-                <div class="crt__bezel">
-                  <div class="crt__screen" id="tvGlass">
-                    <div class="crt__static" aria-hidden="true"></div>
-                    <div class="crt__osd" id="tvOsd"><b>SIN SEÑAL</b><small>SACA UN CASSETTE DEL ESTANTE</small></div>
-                    <div class="crt__vhs-osd" id="vhsOsd" aria-hidden="true"><span class="tl">▶ PLAY</span><span class="bl" id="vhsTime">SP 0:00:00</span></div>
-                  </div>
-                </div>
-                <div class="crt__side" aria-hidden="true">
-                  <span class="crt__brand">THE<br>THING</span>
-                  <span class="crt__ch" id="tvCh">--</span>
-                  <span class="crt__btns"><i></i><i></i><i></i></span>
-                  <span class="crt__slits"></span>
-                  <span class="crt__power"><i id="tvLed"></i>POWER</span>
-                </div>
-              </div>
-              <div class="crt__base" aria-hidden="true"><span>TRINITHING · COLOR TV</span></div>
-            </div>
-            <div class="vcr" id="vcr">
-              <div class="vcr__left">
-                <span class="vcr__logo">THE THING <b>HQ</b> VHS</span>
-                <div class="vcr__slot" id="vcrSlot"><span class="vcr__flap"></span></div>
-              </div>
-              <div class="vcr__display" id="vcrDisplay"><span class="vcr__mode" id="vcrMode">STOP</span><span id="vcrClock">--:--</span></div>
-              <div class="vcr__keys">
-                <button class="vcr__btn" type="button" id="vcrEject" title="Expulsar">⏏</button>
-                <button class="vcr__btn" type="button" id="vcrStop" title="Parar">■</button>
-              </div>
-            </div>
-            <p class="now-playing" id="nowPlaying" aria-live="polite"></p>
-          </div>
-
-          <!-- Estante -->
-          <div class="bookcase">
-            <div class="bookcase__sign" aria-hidden="true">VIDEO<span>CLUB</span></div>
-            <div class="shelf" id="tapes" aria-label="Estante de cassettes"></div>
-            <p class="shelf__tip" id="shelfTip" aria-hidden="true"></p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- VOTACIONES -->
-    <section class="section" id="votos">
-      <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">Versus mode</p>
-            <h2 class="section-title">Votaciones</h2>
-            <p class="section-sub">¿Cuál es el mejor juego del estudio? ¿Y el que más horas te ha robado? Regístrate y vota: puedes cambiar tu voto cuando quieras.</p>
-          </div>
-        </div>
-        <div class="vote-grid reveal" id="votes"></div>
-      </div>
-    </section>
-
-    <!-- NOTICIAS -->
     <section class="section section--alt" id="noticias">
       <div class="container">
         <div class="section-head reveal">
           <div>
             <p class="eyebrow">Transmisión entrante</p>
-            <h2 class="section-title">Noticias</h2>
-            <p class="section-sub">Diarios de desarrollo, anuncios y todo lo que pasa dentro del estudio.</p>
+            <h2 class="section-title">Últimas noticias</h2>
           </div>
-          <button class="btn btn--sm" type="button" id="moreNews" hidden>Cargar más ▼</button>
+          <a class="btn btn--sm" href="noticias.html" data-transition>Todas las noticias ▶</a>
         </div>
-        <div class="news" id="news"></div>
+        <div class="ntabs" id="newsTabs" role="tablist" aria-label="Filtrar noticias por juego" hidden></div>
+        <div class="news-grid" id="news" data-limit="3"></div>
       </div>
     </section>
 
-    <!-- DATOS -->
-    <section class="section" id="datos">
+    <section class="section" id="explorar">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Mapa del mundo</p>
+            <h2 class="section-title">Elige tu destino</h2>
+          </div>
+        </div>
+        <div class="tiles">
+          <a class="tile reveal" href="juegos.html" data-transition style="--d:0s"><span class="tile__icon" aria-hidden="true">▶</span><span class="tile__name">JUEGOS</span><span class="tile__info" data-count-type="app" data-one="cartucho" data-many="cartuchos" data-none="Muy pronto">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
+          <a class="tile reveal" href="videos.html" data-transition style="--d:.06s"><span class="tile__icon" aria-hidden="true">▷</span><span class="tile__name">VIDEOCLUB</span><span class="tile__info" data-count-type="video" data-one="cassette" data-many="cassettes" data-none="Estante vacío">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
+          <a class="tile reveal" href="noticias.html" data-transition style="--d:.12s"><span class="tile__icon" aria-hidden="true">✉</span><span class="tile__name">NOTICIAS</span><span class="tile__info" data-count-type="news" data-one="transmisión" data-many="transmisiones" data-none="Sin señal">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
+          <a class="tile reveal" href="galeria.html" data-transition style="--d:.18s"><span class="tile__icon" aria-hidden="true">▣</span><span class="tile__name">GALERÍA</span><span class="tile__info" data-count-type="image" data-one="imagen" data-many="imágenes" data-none="Álbum vacío">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
+          <a class="tile reveal" href="tienda.html" data-transition style="--d:.24s"><span class="tile__icon" aria-hidden="true">$</span><span class="tile__name">TIENDA</span><span class="tile__info" data-count-type="product" data-one="producto" data-many="productos" data-none="Abre pronto">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
+          <a class="tile reveal" href="soporte.html" data-transition style="--d:.3s"><span class="tile__icon" aria-hidden="true">?</span><span class="tile__name">SOPORTE</span><span class="tile__info">¿Algo falla? Te ayudamos</span><span class="tile__go">ENTRAR</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="datos">
       <div class="container">
         <div class="section-head reveal">
           <div>
@@ -247,47 +136,7 @@
       </div>
     </section>
 
-    <!-- GALERÍA -->
-    <section class="section section--alt" id="galeria">
-      <div class="container">
-        <div class="section-head reveal">
-          <div>
-            <p class="eyebrow">Archivo visual</p>
-            <h2 class="section-title">Galería</h2>
-            <p class="section-sub">Capturas, arte conceptual y fotos detrás de cámaras.</p>
-          </div>
-        </div>
-        <div class="gallery" id="gallery"></div>
-      </div>
-    </section>
-
-    <!-- ESTUDIO -->
-    <section class="section" id="estudio">
-      <div class="container about">
-        <div class="reveal">
-          <p class="eyebrow">Ficha de personaje</p>
-          <h2 class="section-title">El estudio</h2>
-          <div class="terminal">
-            <div class="terminal__bar" aria-hidden="true"><i></i><i></i><i></i></div>
-            <p><span class="dim">C:\THETHING&gt;</span> type manifiesto.txt</p>
-            <p>THE THING es un estudio independiente nacido de la nostalgia por los cartuchos, las cintas VHS y las noches jugando hasta tarde.</p>
-            <p>Hacemos juegos extraños, con personalidad y un poco de miedo. Juegos que se sientan como encontrar una cinta sin etiqueta en el ático.</p>
-            <p><span class="dim">C:\THETHING&gt;</span> <span class="blink">_</span></p>
-          </div>
-        </div>
-        <div class="stats reveal" style="--d:.15s">
-          <p class="eyebrow">Atributos</p>
-          <div class="stat"><div class="stat__row"><span>CREATIVIDAD</span><span>99</span></div><div class="stat__bar"><span style="--v:99%"></span></div></div>
-          <div class="stat"><div class="stat__row"><span>NOSTALGIA</span><span>95</span></div><div class="stat__bar"><span style="--v:95%; --c: var(--amber)"></span></div></div>
-          <div class="stat"><div class="stat__row"><span>MISTERIO</span><span>90</span></div><div class="stat__bar"><span style="--v:90%; --c: var(--red)"></span></div></div>
-          <div class="stat"><div class="stat__row"><span>PIXELES POR PULGADA</span><span>87</span></div><div class="stat__bar"><span style="--v:87%; --c: var(--cyan)"></span></div></div>
-          <div class="stat"><div class="stat__row"><span>HORAS DE SUEÑO</span><span>12</span></div><div class="stat__bar"><span style="--v:12%; --c: var(--green)"></span></div></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CONTINUAR / CONTACTO -->
-    <section class="section section--alt continue" id="contacto">
+    <section class="section continue" id="contacto">
       <div class="container reveal">
         <p class="eyebrow">Game over?</p>
         <h2 class="section-title">¿Continuar?</h2>
@@ -295,21 +144,19 @@
         <p>Crea tu cuenta de jugador para votar, dejar reseñas y recibir avisos de juegos nuevos y noticias. ¿Prensa o colaboraciones? Escríbenos.</p>
         <div class="join">
           <button class="btn btn--solid" type="button" data-join>▶ Nuevo jugador</button>
-          <a class="btn" href="mailto:contacto@thethinggame.com">✉ Insertar moneda</a>
+          <a class="btn" href="soporte.html?tipo=prensa#contacto" data-transition>✉ Insertar moneda</a>
         </div>
       </div>
     </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <span>© <span id="year"></span> THE THING · Todos los derechos reservados</span>
-      <a href="admin.html" data-transition>[ ACCESO STAFF ]</a>
-    </div>
-  </footer>
+  <footer id="footer"></footer>
 
-  <script src="assets/js/common.js"></script>
-  <script src="assets/js/demo.js"></script>
-  <script src="assets/js/main.js"></script>
+  <script src="assets/js/common.js?v=5"></script>
+  <script src="assets/js/demo.js?v=5"></script>
+  <script src="assets/js/layout.js?v=5"></script>
+  <script src="assets/js/captcha.js?v=5"></script>
+  <script src="assets/js/account.js?v=5"></script>
+  <script src="assets/js/main.js?v=5"></script>
 </body>
 </html>

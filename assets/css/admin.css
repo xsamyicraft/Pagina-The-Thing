@@ -258,3 +258,14 @@ table.data tr.total-row td { font-weight: 600; border-top: 4px double var(--line
 .steps { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .steps b { color: var(--text); }
 .raw { margin: 0; max-height: 320px; overflow: auto; padding: 12px; background: #000; color: var(--acc); font-size: 12px; white-space: pre-wrap; word-break: break-all; box-shadow: inset 0 0 0 2px var(--line); }
+
+/* Soporte, denuncias y datos de la empresa */
+.nav-badge {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: auto; padding: 0 5px;
+  background: var(--red); color: #fff; font-family: var(--pixel); font-size: 9px; font-weight: 400;
+}
+.row--alert { box-shadow: inset 4px 0 0 var(--amber), inset 0 0 0 2px var(--line); }
+.box.notice { border: 6px double var(--line-acc); }
+.box.notice p { color: var(--muted); font-size: 14px; }
+.editor .thread { max-height: 46vh; overflow: auto; padding-right: 4px; }
+.editor .row__meta a { color: var(--acc); }

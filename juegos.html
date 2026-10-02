@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Juegos — THE THING</title>
+  <meta name="description" content="Todos los juegos y aplicaciones de THE THING, con reseñas de jugadores y votaciones.">
+  <meta name="theme-color" content="#0a0a0b">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="THE THING">
+  <meta property="og:title" content="Juegos — THE THING">
+  <meta property="og:description" content="Todos los juegos y aplicaciones de THE THING, con reseñas de jugadores y votaciones.">
+  <meta property="og:image" content="https://thethinggame.com/assets/img/logo-email.png">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/css/style.css?v=5">
+</head>
+<body class="fx-on" data-page="juegos">
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+  <div class="crt-noise" aria-hidden="true"></div>
+  <div class="crt-roll" aria-hidden="true"></div>
+  <div class="crt-overlay" aria-hidden="true"></div>
+
+  <header id="header"></header>
+
+  <main id="main">
+    <section class="page-hero">
+      <div class="page-hero__grid" aria-hidden="true"></div>
+      <div class="container">
+        <nav class="crumbs" aria-label="Estás en"><a href="index.html" data-transition>INICIO</a><span aria-hidden="true">/</span><span aria-current="page">JUEGOS</span></nav>
+        <p class="eyebrow">Player 1 — Select</p>
+        <h1 class="page-title glitch" data-text="JUEGOS">JUEGOS</h1>
+        <p class="section-sub">Nuestros juegos y aplicaciones: los que ya puedes jugar y los que se están cocinando en el laboratorio.</p>
+        <div class="seg" role="group" aria-label="Filtrar juegos">
+          <button type="button" data-game-filter="all" aria-pressed="true">Todos</button>
+          <button type="button" data-game-filter="live" aria-pressed="false">Disponibles</button>
+          <button type="button" data-game-filter="dev" aria-pressed="false">En camino</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--tight" id="juegos">
+      <div class="container">
+        <div class="games" id="games"></div>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="votos">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Versus mode</p>
+            <h2 class="section-title">Votaciones</h2>
+            <p class="section-sub">¿Cuál es el mejor juego del estudio? ¿Y el que más horas te ha robado? Regístrate y vota: puedes cambiar tu voto cuando quieras.</p>
+          </div>
+        </div>
+        <div class="vote-grid reveal" id="votes"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="footer"></footer>
+
+  <script src="assets/js/common.js?v=5"></script>
+  <script src="assets/js/demo.js?v=5"></script>
+  <script src="assets/js/layout.js?v=5"></script>
+  <script src="assets/js/captcha.js?v=5"></script>
+  <script src="assets/js/account.js?v=5"></script>
+  <script src="assets/js/main.js?v=5"></script>
+</body>
+</html>

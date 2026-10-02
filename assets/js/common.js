@@ -144,6 +144,7 @@
       const a = e.target.closest('a[data-transition]');
       if (!a || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank') return;
       if (reduceMotion) return;
+      if (a.pathname === location.pathname && a.search === location.search && a.hash) return;   // misma página: solo desplaza
       e.preventDefault();
       beep('select');
       try { sessionStorage.setItem('tt-transition', '1'); } catch { /* ignore */ }
@@ -210,7 +211,10 @@
   }
 
   /* --- Inicialización común --- */
+  let commonDone = false;
   function initCommon() {
+    if (commonDone) return;
+    commonDone = true;
     setFx(reduceMotion ? false : store.get('tt-fx', true));
     document.querySelectorAll('[data-sound-toggle]').forEach((b) => {
       b.setAttribute('aria-pressed', String(soundOn));

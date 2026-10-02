@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /api/
+Disallow: /data/
+Disallow: /admin.html
+
+Sitemap: https://thethinggame.com/sitemap.xml

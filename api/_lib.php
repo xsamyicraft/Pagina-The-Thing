@@ -19,6 +19,8 @@ const CONTENT_TYPES = ['app', 'news', 'data', 'image', 'video', 'product'];
 const VOTE_CATEGORIES = ['best', 'played'];
 // Campos que solo ve el administrador (no se publican en la web)
 const PRIVATE_FIELDS = ['appKey', 'downloads', 'playPackage'];
+// Versión de los términos que acepta cada jugador al registrarse
+const TERMS_VERSION = '2026-10';
 
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
@@ -113,6 +115,9 @@ function normalize_db(?array $db): array
         'notifications' => [],
         'levelplay' => ['secretKey' => '', 'refreshToken' => '', 'token' => '', 'tokenExp' => 0, 'cache' => null],
         'googleplay' => ['serviceAccount' => '', 'bucket' => '', 'cache' => null],
+        'tickets' => [],        // consultas de soporte
+        'reports' => [],        // comentarios denunciados por los jugadores
+        'settings' => [],       // datos de la empresa y redes (páginas legales y pie)
     ];
     foreach ($defaults as $k => $v) {
         if (!isset($db[$k]) || !is_array($db[$k])) $db[$k] = $v;
@@ -320,6 +325,7 @@ function sanitize_content(array $in, array $existing = []): array
         'videoUrl' => clean_url($in['videoUrl'] ?? ''),
         'price' => preg_replace('/[^\d.]/', '', str_replace(',', '.', clean_str($in['price'] ?? '', 12))),
         'sizes' => clean_str($in['sizes'] ?? '', 120),
+        'game' => $type === 'news' ? preg_replace('/[^\w-]/', '', clean_str($in['game'] ?? '', 32)) : '',
         'currency' => in_array(strtoupper((string) ($in['currency'] ?? '')), ['USD', 'MXN', 'EUR', 'ARS', 'COP', 'CLP', 'PEN'], true) ? strtoupper((string) $in['currency']) : 'USD',
     ]);
     if ($item['title'] === '') fail(400, 'El título es obligatorio');
@@ -333,6 +339,64 @@ function public_item(array $item): array
 {
     foreach (PRIVATE_FIELDS as $f) unset($item[$f]);
     return $item;
+}
+
+/* ------------------------------------------------------------------ */
+/* Captcha (minijuego): cada ficha superada vale para una sola acción  */
+/* ------------------------------------------------------------------ */
+
+function require_captcha($token): void
+{
+    $token = is_string($token) ? preg_replace('/[^a-f0-9]/', '', $token) : '';
+    start_session(true);
+    $now = time();
+    $tokens = $_SESSION['captcha_tokens'] ?? [];
+    foreach ($tokens as $t => $exp) if ($exp < $now) unset($tokens[$t]);
+    $ok = $token !== '' && isset($tokens[$token]);
+    unset($tokens[$token]);
+    $_SESSION['captcha_tokens'] = $tokens;
+    if (!$ok) fail(400, 'Completa el minijuego anti-robots para continuar');
+}
+
+/* ------------------------------------------------------------------ */
+/* Datos de la empresa (páginas legales y pie de página)               */
+/* ------------------------------------------------------------------ */
+
+const SETTINGS_FIELDS = [
+    'legalName' => 140, 'tradeName' => 80, 'taxId' => 60, 'address' => 200, 'country' => 40, 'jurisdiction' => 120,
+    'registry' => 200, 'email' => 120, 'supportEmail' => 120, 'privacyEmail' => 120, 'minAge' => 2,
+    'youtube' => 300, 'tiktok' => 300, 'instagram' => 300, 'x' => 300, 'discord' => 300, 'facebook' => 300, 'twitch' => 300,
+];
+
+function public_settings(array $db): array
+{
+    $out = ['tradeName' => 'THE THING', 'email' => 'contacto@thethinggame.com', 'supportEmail' => 'soporte@thethinggame.com', 'minAge' => '13'];
+    foreach (SETTINGS_FIELDS as $k => $max) {
+        $v = $db['settings'][$k] ?? '';
+        if ($v !== '' || !isset($out[$k])) $out[$k] = $v;
+    }
+    $out['updatedAt'] = $db['settings']['updatedAt'] ?? '';
+    return $out;
+}
+
+function sanitize_settings(array $in): array
+{
+    $out = [];
+    foreach (SETTINGS_FIELDS as $k => $max) {
+        $v = clean_str($in[$k] ?? '', $max);
+        if (in_array($k, ['email', 'supportEmail', 'privacyEmail'], true) && $v !== '') {
+            $v = clean_email($v);
+            if ($v === '') fail(400, 'Revisa el correo del campo «' . $k . '»');
+        }
+        if (in_array($k, ['youtube', 'tiktok', 'instagram', 'x', 'discord', 'facebook', 'twitch'], true) && $v !== '') {
+            $v = clean_url($v);
+            if ($v === '' || strpos($v, 'http') !== 0) fail(400, 'El enlace de ' . $k . ' debe empezar por https://');
+        }
+        if ($k === 'minAge') $v = (string) max(13, min(18, (int) ($v ?: 13)));
+        $out[$k] = $v;
+    }
+    $out['updatedAt'] = now_iso();
+    return $out;
 }
 
 function now_iso(): string

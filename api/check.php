@@ -22,6 +22,7 @@ $checks = [
     'fileinfo' => class_exists('finfo'),
     'mail' => function_exists('mail'),
     'sessions' => function_exists('session_start'),
+    'gd_captcha' => function_exists('imagecreatetruecolor'),   // si falta, el minijuego usa SVG
 ];
 $checks['todo_ok'] = $checks['php_ok'] && $checks['data_writable'] && $checks['uploads_writable']
     && $checks['mbstring'] && $checks['fileinfo'] && $checks['sessions'];

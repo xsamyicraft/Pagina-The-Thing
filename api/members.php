@@ -2,12 +2,14 @@
 /*
  * THE THING — jugadores registrados (usuarios normales)
  *   GET  members.php?action=me             → jugador conectado + avisos sin leer
- *   POST members.php?action=register       → { name, email, password, emailNotify }
- *   POST members.php?action=login          → { email, password }
+ *   POST members.php?action=register       → { name, email, password, emailNotify, accept, captcha }
+ *   POST members.php?action=login          → { email, password, captcha }
  *   POST members.php?action=logout
  *   POST members.php?action=prefs          → { emailNotify }
  *   GET  members.php?action=notifications  → lista de avisos
  *   POST members.php?action=seen           → marca los avisos como leídos
+ *   GET  members.php?action=export         → descarga de todos mis datos (JSON)
+ *   POST members.php?action=delete         → { password } borra la cuenta y sus datos
  *   GET  members.php?action=unsubscribe&u=ID&t=TOKEN  → baja de correos (enlace del email)
  */
 
@@ -100,6 +102,40 @@ if ($action === 'notifications' && $method === 'GET') {
     respond(200, $res);
 }
 
+if ($action === 'export' && $method === 'GET') {
+    $id = current_member_id();
+    if (!$id) fail(401, 'Inicia sesión primero');
+    $data = with_db(function (array &$db) use ($id) {
+        $m = find_member($db, $id);
+        if (!$m) return null;
+        $titles = [];
+        foreach ($db['content'] as $i) $titles[$i['id']] = $i['title'];
+        $comments = [];
+        foreach ($db['comments'] as $c) {
+            if ($c['member'] !== $id) continue;
+            $comments[] = ['sobre' => $titles[$c['item']] ?? $c['item'], 'estrellas' => $c['rating'] ?? 0, 'texto' => $c['text'], 'creado' => $c['createdAt'], 'editado' => $c['updatedAt'] ?? $c['createdAt']];
+        }
+        $votes = [];
+        foreach ($db['votes'][$id] ?? [] as $cat => $item) $votes[$cat] = $titles[$item] ?? $item;
+        $tickets = [];
+        foreach ($db['tickets'] as $t) {
+            if ($t['email'] !== $m['email']) continue;
+            $tickets[] = ['codigo' => $t['code'], 'asunto' => $t['subject'], 'estado' => $t['status'], 'mensajes' => $t['messages']];
+        }
+        return [
+            'exportado' => now_iso(),
+            'web' => site_url(),
+            'cuenta' => ['nombre' => $m['name'], 'correo' => $m['email'], 'creada' => $m['createdAt'], 'avisosPorCorreo' => !empty($m['emailNotify']), 'consentimiento' => $m['consent'] ?? null],
+            'reseñasYComentarios' => $comments,
+            'votos' => (object) $votes,
+            'consultasDeSoporte' => $tickets,
+        ];
+    });
+    if (!$data) fail(401, 'Inicia sesión primero');
+    header('Content-Disposition: attachment; filename="mis-datos-thething.json"');
+    respond(200, $data);
+}
+
 if ($method !== 'POST') fail(405, 'Método no permitido');
 
 if ($action === 'register') {
@@ -112,6 +148,8 @@ if ($action === 'register') {
     if ($email === '') fail(400, 'El correo no es válido');
     if (strlen($password) < 8) fail(400, 'La contraseña debe tener al menos 8 caracteres');
     if ($email === strtolower(ADMIN_EMAIL)) fail(400, 'Ese correo está reservado');
+    if (empty($in['accept'])) fail(400, 'Debes aceptar los Términos y la Política de privacidad');
+    require_captcha($in['captcha'] ?? '');
 
     $member = with_db(function (array &$db) use ($name, $email, $password, $in) {
         if (rate_limited($db, 'register:' . ip_key(), 5, 3600)) return 'limited';
@@ -124,6 +162,7 @@ if ($action === 'register') {
             'password' => password_hash($password, PASSWORD_DEFAULT),
             'emailNotify' => !empty($in['emailNotify']),
             'createdAt' => now_iso(), 'lastSeen' => '',
+            'consent' => ['terms' => TERMS_VERSION, 'at' => now_iso(), 'emailNotify' => !empty($in['emailNotify'])],
         ];
         $db['members'][] = $m;
         return $m;
@@ -147,6 +186,7 @@ if ($action === 'login') {
     $in = read_json();
     $email = clean_email($in['email'] ?? '');
     $password = (string) ($in['password'] ?? '');
+    require_captcha($in['captcha'] ?? '');
     $key = 'member:' . ip_key();
     $res = with_db(function (array &$db) use ($email, $password, $key) {
         if (too_many($db, $key, 8, 300)) return 'locked';
@@ -185,6 +225,36 @@ if ($action === 'prefs') {
     }, true);
     if (!$res) fail(401, 'Inicia sesión primero');
     respond(200, ['member' => $res]);
+}
+
+if ($action === 'delete') {
+    $in = read_json();
+    $password = (string) ($in['password'] ?? '');
+    $res = with_db(function (array &$db) use ($id, $password) {
+        if (rate_limited($db, 'member-delete:' . $id, 6, 900)) return 'limited';
+        $m = find_member($db, $id);
+        if (!$m) return 'missing';
+        if (!password_verify($password, $m['password'])) return 'bad';
+        $db['members'] = array_values(array_filter($db['members'], function ($x) use ($id) {
+            return $x['id'] !== $id;
+        }));
+        $mine = [];
+        foreach ($db['comments'] as $c) if ($c['member'] === $id) $mine[] = $c['id'];
+        $db['comments'] = array_values(array_filter($db['comments'], function ($c) use ($id) {
+            return $c['member'] !== $id;
+        }));
+        $db['reports'] = array_values(array_filter($db['reports'], function ($r) use ($id, $mine) {
+            return $r['member'] !== $id && !in_array($r['comment'], $mine, true);
+        }));
+        unset($db['votes'][$id]);
+        foreach ($db['tickets'] as $k => $t) if (($t['member'] ?? '') === $id) $db['tickets'][$k]['member'] = '';
+        return 'ok';
+    }, true);
+    if ($res === 'limited') fail(429, 'Demasiados intentos. Espera unos minutos.');
+    if ($res === 'bad') fail(400, 'La contraseña no es correcta');
+    if ($res === 'missing') fail(401, 'Inicia sesión primero');
+    unset($_SESSION['member']);
+    respond(200, ['ok' => true]);
 }
 
 if ($action === 'seen') {

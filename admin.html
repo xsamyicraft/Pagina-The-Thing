@@ -8,11 +8,9 @@
   <meta name="theme-color" content="#0a0a0b">
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css">
-  <link rel="stylesheet" href="assets/css/admin.css">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="assets/css/style.css?v=5">
+  <link rel="stylesheet" href="assets/css/admin.css?v=5">
 </head>
 <body class="fx-on admin">
   <div class="crt-noise" aria-hidden="true"></div>
@@ -104,13 +102,15 @@
       <nav class="admin-nav" aria-label="Secciones del panel">
         <button type="button" data-tab="overview" class="active"><i>■</i> Resumen</button>
         <button type="button" data-tab="stats"><i>%</i> Estadísticas</button>
-        <button type="button" data-tab="community"><i>@</i> Comunidad</button>
+        <button type="button" data-tab="community"><i>@</i> Comunidad <b class="nav-badge" id="reportBadge" hidden></b></button>
+        <button type="button" data-tab="support"><i>?</i> Soporte <b class="nav-badge" id="supportBadge" hidden></b></button>
         <button type="button" data-tab="app"><i>▶</i> Juegos / apps</button>
         <button type="button" data-tab="news"><i>✉</i> Noticias</button>
         <button type="button" data-tab="data"><i>#</i> Datos</button>
         <button type="button" data-tab="image"><i>▣</i> Galería</button>
         <button type="button" data-tab="video"><i>▷</i> Vídeos</button>
         <button type="button" data-tab="product"><i>$</i> Tienda</button>
+        <button type="button" data-tab="settings"><i>§</i> Empresa y legal</button>
         <button type="button" data-tab="account"><i>☺</i> Cuenta</button>
         <a href="index.html" target="_blank" rel="noopener"><i>↗</i> Ver sitio</a>
       </nav>
@@ -119,8 +119,8 @@
     </div>
   </div>
 
-  <script src="assets/js/common.js"></script>
-  <script src="assets/js/demo.js"></script>
-  <script src="assets/js/admin.js"></script>
+  <script src="assets/js/common.js?v=5"></script>
+  <script src="assets/js/demo.js?v=5"></script>
+  <script src="assets/js/admin.js?v=5"></script>
 </body>
 </html>

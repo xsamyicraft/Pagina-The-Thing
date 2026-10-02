@@ -3,31 +3,49 @@
 Sitio web oficial de **THE THING**, estudio independiente de videojuegos.
 Estética retro: pantalla CRT, cintas VHS, menús de videojuego y pixel art.
 
-- **Portada** (`index.html`): pantalla de arranque tipo BIOS, logo con glitch,
-  cinta de titulares, juegos/apps (cartuchos), noticias (cintas VHS), datos
-  (marcador arcade "High scores"), galería (polaroids con visor), ficha del
-  estudio y sección de contacto.
-- **Tienda** (`tienda.html`): página propia de merch. Se entra con el botón
-  **🛒 Tienda** de la barra superior, junto al de usuario; no hace falta cuenta.
-- **Videoclub**: estante de madera con los lomos de los cassettes; al elegir uno
-  sale del estante, entra en el vídeo VHS y se ve en un televisor CRT de los 80.
-  Los vídeos de YouTube solo se reproducen con la web en un servidor (Hostinger o
-  `probar-con-php`); abierta como archivo, YouTube lo bloquea y se ofrece un botón
-  "Ver en YouTube".
+Cada sección tiene **su propia página**, con la misma cabecera (menús
+desplegables JUEGOS / SOPORTE) y el mismo pie de página (redes sociales, juegos
+populares, compañía, soporte y legal, botón **Volver arriba**):
+
+| Página | Qué tiene |
+|---|---|
+| `index.html` | Pantalla de arranque BIOS, logo animado, cinta de titulares, juego destacado, últimas noticias con pestañas por juego, accesos a cada sección, datos "High scores" y ¿Continuar? |
+| `juegos.html` | Todos los juegos (filtro Todos / Disponibles / En camino), fichas con reseñas y **votaciones** |
+| `noticias.html` | Noticias en tarjetas con fecha, título y **LEER MÁS**, con **pestañas por juego** |
+| `videos.html` | Videoclub: estante de cassettes, vídeo VHS y tele CRT |
+| `galeria.html` | Galería con visor |
+| `tienda.html` | Merch (sin cuenta) con botón de arrepentimiento |
+| `soporte.html` | Centro de ayuda: buscador de preguntas frecuentes, formulario con **código de seguimiento** y "Seguir mi consulta" |
+| `terminos.html`, `privacidad.html`, `cookies.html`, `aviso-legal.html`, `normas.html` | Textos legales y normas de la comunidad |
+
+- **Videoclub**: al tocar un cassette sale del estante hacia ti, pega un
+  **chispazo** y se reproduce al instante en la tele (no le afecta hacer scroll).
+  YouTube (modo privacidad `youtube-nocookie`) y Vimeo solo se cargan si el
+  visitante acepta los vídeos de terceros en el aviso de cookies.
 - **Gato del logo animado**: la cabeza queda fija, las patitas se mueven (y
   "aporrean" si haces clic) y dos pupilas blancas con glitch siguen al ratón.
+- **Minijuego anti-robots (captcha)**: para crear cuenta, iniciar sesión o
+  escribir a soporte hay que superar un nivel arcade ("TOCA TODAS LAS MONEDAS",
+  3 vidas, tiempo límite). La imagen la dibuja el servidor y la solución nunca
+  llega al navegador.
 - **Jugadores registrados**: cualquiera puede crear su cuenta para
   - **votar** el *mejor juego* y el *más jugado* (un voto por categoría, se puede cambiar),
   - dejar **reseñas con estrellas** en los juegos y **comentarios** en las noticias,
     mostrados como "códigos retro" (estilo Game Genie),
-  - recibir **avisos**: campana en la web, avisos del navegador y, si lo pide, correo.
+  - recibir **avisos**: campana en la web, avisos del navegador y, si lo pide, correo,
+  - **denunciar** comentarios, **descargar sus datos** y **borrar su cuenta** desde *Mi cuenta*.
 - **Panel de administración** (`admin.html`): inicio de sesión para los dueños.
   Permite publicar, editar y borrar **juegos/aplicaciones, noticias, datos e
   imágenes**, con subida de imágenes por arrastrar y soltar, y además:
   - **Estadísticas**: ganancias, impresiones, eCPM y usuarios activos de
     **Unity LevelPlay**, gráfica de ganancias por día, descargas por juego,
     valoraciones y votos.
-  - **Comunidad**: lista de jugadores, moderación de reseñas y envío de avisos.
+  - **Comunidad**: lista de jugadores, moderación de reseñas, comentarios
+    denunciados y envío de avisos.
+  - **Soporte**: consultas de los visitantes; respondes desde el panel y la
+    respuesta les llega por correo.
+  - **Empresa y legal**: datos del titular y redes sociales, que rellenan solos
+    las páginas legales y el pie.
 
 No necesita base de datos ni instalar nada: es **HTML + CSS + JavaScript + PHP**,
 y funciona en cualquier hosting compartido con PHP 7.4 o superior (Hostinger incluido).
@@ -77,9 +95,10 @@ dirección, útil para enseñar la web sin tocar los datos reales).
 
    ```
    public_html/
-   ├── index.html
-   ├── admin.html
-   ├── 404.html
+   ├── index.html, juegos.html, noticias.html, videos.html, galeria.html
+   ├── tienda.html, soporte.html, terminos.html, privacidad.html, cookies.html
+   ├── aviso-legal.html, normas.html, admin.html, 404.html
+   ├── robots.txt, sitemap.xml
    ├── .htaccess
    ├── api/
    ├── assets/
@@ -97,8 +116,11 @@ dirección, útil para enseñar la web sin tocar los datos reales).
 6. **Inmediatamente después**, abre `https://tudominio.com/admin.html`.
    La primera vez te pedirá **crear la contraseña** de `admin@thethinggame.com`.
    Solo se puede hacer una vez; a partir de ahí, se entra con correo + contraseña.
-7. Activa el SSL gratis en hPanel y, cuando funcione, descomenta las líneas de
-   "Fuerza HTTPS" al final del archivo `.htaccess`.
+7. El `.htaccess` ya obliga a usar **HTTPS** (tu SSL de Hostinger está activo).
+8. En el panel, abre **Empresa y legal** y completa los datos del titular
+   (razón social, identificación fiscal, domicilio, país y tribunales) y tus
+   redes sociales. Hasta que lo hagas, las páginas legales muestran avisos en
+   naranja como `[RAZÓN SOCIAL]`.
 
 ¡Listo! Desde el panel ya puedes publicar contenido.
 
@@ -140,13 +162,15 @@ entrar en `admin.html`: te pedirá crear una contraseña nueva.
 | Sección         | Qué publica                                    | Dónde aparece en la portada           |
 |-----------------|------------------------------------------------|---------------------------------------|
 | Juegos / apps   | Nombre, descripción, imagen, plataforma, estado, enlace de descarga | "Selecciona tu juego". El destacado sale grande |
-| Noticias        | Titular, entradilla, cuerpo, imagen, enlace    | "Noticias" y la cinta roja de titulares |
+| Noticias        | Titular, **juego relacionado**, entradilla, cuerpo, imagen, enlace | Página Noticias (pestaña de ese juego), portada y cinta de titulares |
 | Datos           | Etiqueta + valor (ej. "Jugadores" → 12500)     | Marcador "High scores" (los números se animan) |
 | Galería         | Imagen + título + descripción                  | "Galería" con visor a pantalla completa |
 | Estadísticas    | Ganancias LevelPlay, descargas, valoraciones, votos | — (solo administradores)          |
 | Comunidad       | Jugadores, reseñas (borrar), avisos            | Campana de avisos de los jugadores    |
 | Vídeos          | Enlace de YouTube/Vimeo o MP4                  | Cassettes VHS que se meten en una tele vieja |
 | Tienda          | Producto, precio, moneda, tallas, enlace de compra | Tienda de merch (sin enlace → pedido por correo) |
+| Soporte         | Responder, cerrar, reabrir o borrar consultas  | La respuesta llega por correo con su código |
+| Empresa y legal | Datos del titular, correos públicos, redes     | Páginas legales y pie de página       |
 | Cuenta          | Cambiar contraseña                             | —                                     |
 
 Al publicar un juego, noticia o imagen, deja marcada la casilla **"Avisar a los
@@ -224,15 +248,50 @@ const MEMBER_SESSION_DAYS = 30;               // días que un jugador sigue cone
 const MAIL_FROM = 'no-reply@thethinggame.com';// remitente de los avisos por correo
 ```
 
-El correo de contacto de la portada (`contacto@thethinggame.com`) está en
-`index.html`, sección `id="contacto"`; cámbialo por el que uséis.
+Los correos públicos (contacto, soporte, privacidad) se cambian desde el panel,
+en **Empresa y legal**. Los avisos de nuevas consultas de soporte llegan a
+`ADMIN_EMAIL`.
+
+---
+
+## Legal, cookies y privacidad
+
+- **Páginas legales**: Términos y condiciones (con condiciones de compra y
+  derecho de arrepentimiento), Política de privacidad, Política de cookies,
+  Aviso legal y Normas de la comunidad. Según el **país** elegido en *Empresa y
+  legal* se muestran los párrafos que corresponden (Argentina: Ley 24.240, Ley
+  25.326 y leyenda de la AAIP, enlace de Defensa del Consumidor en el pie;
+  España: plazo de 14 días y AEPD; México: PROFECO; otros: texto general).
+- **Son una plantilla**: revísalos con un abogado de tu país antes de vender o
+  si la web crece. Nadie puede garantizar que una web quede libre de
+  cualquier reclamación.
+- **Cookies**: solo hay cookies técnicas (sesión y anti-robots). Los vídeos de
+  YouTube/Vimeo se bloquean hasta que el visitante los acepta; "Aceptar" y
+  "Solo necesarias" tienen el mismo peso, la elección se puede cambiar desde
+  el pie y se vuelve a pedir a los 12 meses.
+- **Fuentes propias**: las tipografías se sirven desde `assets/fonts` (no se
+  envía la IP de los visitantes a Google Fonts).
+- **Registro**: hay que aceptar Términos y Privacidad y declarar la edad mínima
+  (13 por defecto, configurable). Se guarda la fecha y la versión aceptada.
+  El correo de novedades es opcional y viene desmarcado.
+- **Derechos de los jugadores**: *Mi cuenta → Privacidad y mis datos* permite
+  descargar todos sus datos (JSON) y borrar la cuenta con sus reseñas y votos.
+- **Botón de arrepentimiento**: en el pie de todas las páginas; abre el
+  formulario de soporte y entrega un código de trámite al instante.
+
+## Soporte
+
+Los visitantes escriben desde `soporte.html` (tipo de consulta, juego, nº de
+pedido…) y reciben un código como `TT-1A2B-3C4D` por pantalla y por correo.
+Con ese código y su correo pueden ver la conversación y contestar en
+"Seguir mi consulta". Tú respondes desde **Panel → Soporte**.
 
 ---
 
 ## Seguridad
 
 - Contraseña guardada con `password_hash` (bcrypt), nunca en texto plano.
-- Sesión con cookie `HttpOnly` + `SameSite=Strict`; bloqueo de 5 minutos tras
+- Sesión con cookie `HttpOnly` + `SameSite=Lax`; bloqueo de 5 minutos tras
   5 intentos fallidos de inicio de sesión.
 - La API rechaza peticiones de otros dominios (protección CSRF).
 - `data/db.php` empieza con `exit`, así que no se puede leer desde el navegador,
@@ -242,7 +301,10 @@ El correo de contacto de la portada (`contacto@thethinggame.com`) está en
 - Todo el texto publicado se escapa antes de mostrarse (sin inyección de HTML).
 - Las claves de LevelPlay, las descargas y los correos de los jugadores nunca se
   envían a la parte pública de la web.
-- Registro y comentarios con límite de frecuencia y trampa anti-bots.
+- Registro, inicio de sesión y soporte protegidos con el minijuego anti-robots
+  (ficha de un solo uso, 10 minutos), límites de frecuencia y trampa anti-bots.
+- Cabeceras de seguridad en `.htaccess`: Content-Security-Policy,
+  Permissions-Policy, X-Frame-Options y redirección a HTTPS.
 
 ## Copia de seguridad
 
@@ -264,4 +326,4 @@ y abre <http://localhost:8080>.
 
 - Botones de la barra: activar/desactivar efecto CRT y sonidos 8 bits.
 - Respeta "reducir movimiento" del sistema operativo.
-- Prueba el código Konami en la portada: ↑ ↑ ↓ ↓ ← → ← → B A
+- Prueba el código Konami en cualquier página: ↑ ↑ ↓ ↓ ← → ← → B A

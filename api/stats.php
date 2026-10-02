@@ -7,7 +7,8 @@
  *   POST stats.php?action=levelplay_clear       → borra las credenciales
  *   GET  stats.php?action=members               → jugadores registrados
  *   POST stats.php?action=delete_member         → { id }
- *   GET  stats.php?action=comments              → reseñas y comentarios (moderación)
+ *   GET  stats.php?action=comments              → reseñas y comentarios (moderación, con denuncias)
+ *   POST stats.php?action=dismiss_reports       → { id } descarta las denuncias de un comentario
  *   GET  stats.php?action=notifications         → avisos enviados
  *   POST stats.php?action=notify                → { title, text, item } envía un aviso a los jugadores
  *   GET  stats.php?action=levelplay_debug       → primeras filas crudas de LevelPlay (diagnóstico)
@@ -127,6 +128,8 @@ if ($action === 'comments' && $method === 'GET') {
     $list = with_db(function (array &$db) {
         $titles = [];
         foreach ($db['content'] as $i) $titles[$i['id']] = ['title' => $i['title'], 'type' => $i['type']];
+        $reports = [];
+        foreach ($db['reports'] as $r) $reports[$r['comment']][] = $r['reason'];
         $out = [];
         foreach ($db['comments'] as $c) {
             $m = find_member($db, $c['member']);
@@ -134,6 +137,7 @@ if ($action === 'comments' && $method === 'GET') {
                 'id' => $c['id'], 'item' => $c['item'], 'itemTitle' => $titles[$c['item']]['title'] ?? '—',
                 'itemType' => $titles[$c['item']]['type'] ?? '', 'name' => $m ? $m['name'] : 'JUGADOR BORRADO',
                 'rating' => $c['rating'] ?? 0, 'text' => $c['text'], 'createdAt' => $c['createdAt'],
+                'reports' => $reports[$c['id']] ?? [],
             ];
         }
         usort($out, function ($a, $b) {
@@ -252,11 +256,26 @@ if ($action === 'delete_member') {
             $db['comments'] = array_values(array_filter($db['comments'], function ($c) use ($id) {
                 return $c['member'] !== $id;
             }));
+            $alive = array_column($db['comments'], 'id');
+            $db['reports'] = array_values(array_filter($db['reports'], function ($r) use ($id, $alive) {
+                return $r['member'] !== $id && in_array($r['comment'], $alive, true);
+            }));
             return true;
         }
         return false;
     }, true);
     if (!$ok) fail(404, 'No encontrado');
+    respond(200, ['ok' => true]);
+}
+
+if ($action === 'dismiss_reports') {
+    $in = read_json();
+    $id = preg_replace('/[^\w-]/', '', (string) ($in['id'] ?? ''));
+    with_db(function (array &$db) use ($id) {
+        $db['reports'] = array_values(array_filter($db['reports'], function ($r) use ($id) {
+            return $r['comment'] !== $id;
+        }));
+    }, true);
     respond(200, ['ok' => true]);
 }
 

@@ -1,28 +1,19 @@
-/* THE THING — sitio público */
+/* THE THING — contenido de las páginas públicas (inicio, juegos, vídeos, noticias, galería) */
 (function () {
   'use strict';
 
-  const { api, escapeHtml: esc, formatText, formatDate, beep, createModal, reduceMotion } = window.TT;
+  const { api, escapeHtml: esc, formatText, formatDate, beep, createModal, reduceMotion, toast } = window.TT;
   const $ = (sel, root = document) => root.querySelector(sel);
-
-  window.TT.initCommon();
-  $('#year').textContent = new Date().getFullYear();
-
-  /* Contenido de ejemplo por si se abre el HTML sin el servidor PHP */
-  const DEMO = [
-    { id: 'demo-app', type: 'app', title: 'PROYECTO: THE THING', platform: 'PC', status: 'En desarrollo', featured: true, summary: 'Nuestro primer título. Un survival de terror retro donde nada es lo que parece… ni siquiera el gato.', body: 'Estamos trabajando en nuestro primer juego. Muy pronto compartiremos más detalles.', image: '', link: '', createdAt: '2026-01-02T00:00:00Z' },
-    { id: 'demo-news', type: 'news', title: 'Bienvenidos a THE THING', summary: 'Nace un nuevo estudio independiente de videojuegos.', body: 'Hoy encendemos la máquina por primera vez.', image: '', createdAt: '2026-01-01T00:00:00Z' },
-    { id: 'demo-d1', type: 'data', title: 'Proyectos en marcha', value: '1', summary: 'Y contando.', createdAt: '2026-01-01T00:00:00Z' },
-    { id: 'demo-d2', type: 'data', title: 'Tazas de café', value: '9999', summary: 'Estimación conservadora.', createdAt: '2026-01-01T00:00:00Z' },
-    { id: 'demo-img', type: 'image', title: 'El logo', summary: 'La cosa nos observa.', image: 'assets/img/logo.webp', createdAt: '2026-01-01T00:00:00Z' },
-  ];
+  const site = window.TT.site;
+  const account = window.TT.account;
 
   /* ------------------------------------------------------------------ */
-  /* Pantalla de arranque                                                */
+  /* Pantalla de arranque (solo en la portada)                           */
   /* ------------------------------------------------------------------ */
 
   function runBoot() {
     const boot = $('#boot');
+    if (!boot) return Promise.resolve();
     let seen = false;
     try { seen = sessionStorage.getItem('tt-booted') === '1'; } catch { /* ignore */ }
     if (seen || reduceMotion) {
@@ -75,50 +66,17 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Cabecera, menú y navegación                                         */
-  /* ------------------------------------------------------------------ */
-
-  function initHeader() {
-    const header = $('#header');
-    let lastY = window.scrollY;
-    window.addEventListener('scroll', () => {
-      const y = window.scrollY;
-      header.classList.toggle('scrolled', y > 20);
-      header.classList.toggle('hidden', y > lastY && y > 400 && !document.body.classList.contains('menu-open'));
-      lastY = y;
-    }, { passive: true });
-
-    const toggle = $('#menuToggle');
-    const setMenu = (open) => {
-      document.body.classList.toggle('menu-open', open);
-      toggle.setAttribute('aria-expanded', String(open));
-    };
-    toggle.addEventListener('click', () => { setMenu(!document.body.classList.contains('menu-open')); beep('select'); });
-    $('#menu').addEventListener('click', (e) => { if (e.target.closest('a')) setMenu(false); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMenu(false); });
-
-    // Resalta la sección visible en el menú
-    const links = [...document.querySelectorAll('.menu a')];
-    const spy = new IntersectionObserver((entries) => {
-      entries.forEach((en) => {
-        if (!en.isIntersecting) return;
-        links.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === `#${en.target.id}`));
-      });
-    }, { rootMargin: '-45% 0px -50% 0px' });
-    document.querySelectorAll('main section[id]').forEach((s) => spy.observe(s));
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Hero: texto que se escribe, reloj, parallax                         */
+  /* Portada: texto que se escribe, reloj, gato y cuenta atrás           */
   /* ------------------------------------------------------------------ */
 
   function initHero() {
+    const el = $('#typed');
+    if (!el) return;
     const phrases = [
       'Hacemos videojuegos raros, memorables y con alma de cartucho viejo.',
       'Terror, misterio y píxeles desde el primer frame.',
       'No apagues la consola. Algo te está mirando.',
     ];
-    const el = $('#typed');
     if (reduceMotion) {
       el.textContent = phrases[0];
     } else {
@@ -135,20 +93,15 @@
         setTimeout(tick, delay);
       })();
     }
-
     const clock = $('#hudClock');
     const pad = (n) => String(n).padStart(2, '0');
-    setInterval(() => {
+    if (clock) setInterval(() => {
       const d = new Date();
       clock.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     }, 1000);
-
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Gato del logo: patitas que se mueven y pupilas que siguen al ratón  */
-  /* ------------------------------------------------------------------ */
-
+  /* Gato del logo: patitas que se mueven y pupilas que siguen al ratón */
   function initCat() {
     const cat = $('#cat');
     if (!cat) return;
@@ -195,7 +148,6 @@
 
     if (reduceMotion) return;
 
-    // "Bugs" aleatorios en las pupilas
     (function bug() {
       cat.style.setProperty('--bx', `${rand(-9, 9).toFixed(0)}px`);
       cat.style.setProperty('--by', `${rand(-5, 5).toFixed(0)}px`);
@@ -204,7 +156,6 @@
       setTimeout(bug, rand(1200, 4200));
     })();
 
-    // Interferencia de color en las patitas de vez en cuando
     (function pawGlitch() {
       const paw = paws[Math.floor(Math.random() * paws.length)];
       paw.classList.add('glitch-x');
@@ -212,7 +163,6 @@
       setTimeout(pawGlitch, rand(1500, 5000));
     })();
 
-    // Al hacer clic, el gato "aporrea" con las patitas
     $('#inicio').addEventListener('pointerdown', (e) => {
       if (e.target.closest('a, button')) return;
       cat.classList.add('tap');
@@ -222,8 +172,29 @@
     });
   }
 
+  function initCountdown() {
+    const el = $('#countdown');
+    if (!el) return;
+    let n = 9;
+    let timer = null;
+    new IntersectionObserver(([en]) => {
+      if (en.isIntersecting && !timer && !reduceMotion) {
+        timer = setInterval(() => {
+          n = n <= 0 ? 9 : n - 1;
+          el.textContent = n;
+          el.classList.remove('tick');
+          void el.offsetWidth;
+          el.classList.add('tick');
+        }, 1000);
+      } else if (!en.isIntersecting && timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }).observe(el);
+  }
+
   /* ------------------------------------------------------------------ */
-  /* Aparición al hacer scroll + contadores                              */
+  /* Aparición al hacer scroll + contadores + inclinación                */
   /* ------------------------------------------------------------------ */
 
   const revealObserver = new IntersectionObserver((entries) => {
@@ -236,9 +207,7 @@
     });
   }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
 
-  function observeReveals(root = document) {
-    root.querySelectorAll('.reveal:not(.in)').forEach((el) => revealObserver.observe(el));
-  }
+  const observeReveals = (root = document) => root.querySelectorAll('.reveal:not(.in)').forEach((el) => revealObserver.observe(el));
 
   function countUp(el) {
     const target = Number(el.dataset.count);
@@ -248,14 +217,12 @@
     const fmt = (n) => (Number.isInteger(target) ? Math.round(n) : n.toFixed(1));
     (function frame(now) {
       const t = Math.min(1, (now - start) / dur);
-      const eased = 1 - Math.pow(1 - t, 3);
-      el.textContent = fmt(target * eased);
+      el.textContent = fmt(target * (1 - Math.pow(1 - t, 3)));
       if (t < 1) requestAnimationFrame(frame);
       else el.textContent = el.dataset.final;
     })(start);
   }
 
-  /* Inclinación 3D de las tarjetas */
   function addTilt(el) {
     if (reduceMotion || !window.matchMedia('(pointer: fine)').matches) return;
     el.addEventListener('pointermove', (e) => {
@@ -268,14 +235,14 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Render del contenido                                                */
+  /* Estado y utilidades                                                 */
   /* ------------------------------------------------------------------ */
 
   let content = [];
   let community = { ratings: {}, votes: { best: {}, played: {} }, comments: {}, mine: {} };
-  let me = null;          // jugador conectado
-  let online = true;      // false si no hay servidor PHP (vista previa local)
+  let online = true;
   const byType = (t) => content.filter((i) => i.type === t);
+  const me = () => account.me();
 
   function starsHtml(value) {
     const n = Math.round(Number(value) || 0);
@@ -286,21 +253,30 @@
     ? `<img src="${esc(item.image)}" alt="" loading="lazy" class="${cls}">`
     : '<div class="placeholder" aria-hidden="true"><img src="assets/img/logo-small.webp" alt=""></div>');
 
-  function statusClass(status) {
-    const s = (status || '').toLowerCase();
-    if (/disponible|lanzado|ya|live|jugar/.test(s)) return 'tag--live';
-    return 'tag--status';
-  }
+  const isLive = (status) => /disponible|lanzado|ya|live|jugar/i.test(status || '');
+  const statusClass = (status) => (isLive(status) ? 'tag--live' : 'tag--status');
+  const gameOf = (n) => (n.game ? content.find((g) => g.id === n.game && g.type === 'app') : null);
+  const ratingLine = (g) => {
+    const r = ratingOf(g.id);
+    return r ? `<span class="cart__stars">${starsHtml(r.avg)} ${r.avg.toFixed(1)} · ${r.count} reseña${r.count === 1 ? '' : 's'}<span class="sr-only"> (valoración ${r.avg} de 5)</span></span>` : '';
+  };
 
+  /* ------------------------------------------------------------------ */
+  /* Juegos                                                              */
+  /* ------------------------------------------------------------------ */
+
+  let gameFilter = 'all';
   function renderGames() {
     const wrap = $('#games');
-    const games = byType('app').sort((a, b) => Number(b.featured) - Number(a.featured));
+    if (!wrap) return;
+    const all = byType('app').sort((a, b) => Number(b.featured) - Number(a.featured));
+    const games = all.filter((g) => (gameFilter === 'all' ? true : gameFilter === 'live' ? isLive(g.status) : !isLive(g.status)));
     if (!games.length) {
-      wrap.innerHTML = '<div class="empty">NO HAY CARTUCHOS INSERTADOS… TODAVÍA</div>';
+      wrap.innerHTML = `<div class="empty" style="grid-column:1/-1">${all.length ? 'NINGÚN CARTUCHO CON ESE FILTRO' : 'NO HAY CARTUCHOS INSERTADOS… TODAVÍA'}</div>`;
       return;
     }
     wrap.innerHTML = games.map((g, i) => `
-      <button type="button" class="cart reveal${g.featured && i === 0 ? ' cart--featured' : ''}" style="--d:${Math.min(i, 5) * 0.08}s" data-open="${esc(g.id)}">
+      <button type="button" class="cart reveal${g.featured && i === 0 && gameFilter === 'all' ? ' cart--featured' : ''}" style="--d:${Math.min(i, 5) * 0.08}s" data-open="${esc(g.id)}">
         <div class="cart__media">${media(g)}</div>
         <div class="cart__body">
           <div class="cart__meta">
@@ -310,44 +286,115 @@
           </div>
           <h3 class="cart__title">${esc(g.title)}</h3>
           ${g.summary ? `<p class="cart__summary">${esc(g.summary)}</p>` : ''}
-          ${ratingOf(g.id) ? `<span class="cart__stars">${starsHtml(ratingOf(g.id).avg)} ${ratingOf(g.id).avg.toFixed(1)} · ${ratingOf(g.id).count} reseña${ratingOf(g.id).count === 1 ? '' : 's'}<span class="sr-only"> (valoración ${ratingOf(g.id).avg} de 5)</span></span>` : ''}
+          ${ratingLine(g)}
           <span class="cart__cta">Ver más</span>
         </div>
       </button>`).join('');
     wrap.querySelectorAll('.cart').forEach(addTilt);
   }
 
-  const NEWS_PAGE = 6;
+  /* Destacado de la portada */
+  function renderFeatured() {
+    const wrap = $('#featured');
+    if (!wrap) return;
+    const games = byType('app');
+    const g = games.find((x) => x.featured) || games[0];
+    if (!g) { wrap.closest('section').hidden = true; return; }
+    wrap.innerHTML = `
+      <div class="feature reveal">
+        <div class="feature__media">${media(g)}<span class="feature__badge">★ DESTACADO</span></div>
+        <div class="feature__body">
+          <div class="cart__meta">
+            ${g.status ? `<span class="tag ${statusClass(g.status)}">${esc(g.status)}</span>` : ''}
+            ${g.platform ? `<span class="tag">${esc(g.platform)}</span>` : ''}
+          </div>
+          <h3 class="feature__title">${esc(g.title)}</h3>
+          ${g.summary ? `<p class="feature__summary">${esc(g.summary)}</p>` : ''}
+          ${ratingLine(g)}
+          <div class="feature__cta">
+            <button class="btn btn--solid" type="button" data-open="${esc(g.id)}">▶ Ver ficha</button>
+            ${g.link ? `<a class="btn" href="${esc(g.link)}" target="_blank" rel="noopener noreferrer">Jugar / descargar ↗</a>` : ''}
+            <a class="btn" href="juegos.html" data-transition>Todos los juegos</a>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* Accesos a cada página en la portada */
+  function renderExplore() {
+    document.querySelectorAll('[data-count-type]').forEach((el) => {
+      const n = byType(el.dataset.countType).length;
+      el.textContent = n ? `${n} ${n === 1 ? el.dataset.one : el.dataset.many}` : el.dataset.none || '';
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Noticias: tarjetas con pestañas por juego                           */
+  /* ------------------------------------------------------------------ */
+
+  const NEWS_PAGE = 9;
   let newsShown = NEWS_PAGE;
+  let newsFilter = 'all';
+
+  function newsCard(n, i, wide = false) {
+    const game = gameOf(n);
+    return `
+      <a class="ncard reveal${wide ? ' ncard--wide' : ''}" style="--d:${(i % 6) * 0.07}s" href="noticias.html#ver-${esc(n.id)}" data-open="${esc(n.id)}">
+        <span class="ncard__media">${media(n)}<span class="ncard__tag">${esc(game ? game.title : 'THE THING')}</span></span>
+        <span class="ncard__body">
+          <time class="ncard__date" datetime="${esc(n.createdAt)}">${esc(formatDate(n.createdAt).toUpperCase())}</time>
+          <span class="ncard__title">${esc(n.title)}</span>
+          ${wide && n.summary ? `<span class="ncard__summary">${esc(n.summary)}</span>` : ''}
+          <span class="ncard__more">LEER MÁS <i aria-hidden="true">▶</i></span>
+        </span>
+      </a>`;
+  }
+
+  function newsTabs(news) {
+    const games = byType('app').filter((g) => news.some((n) => n.game === g.id));
+    const general = news.some((n) => !gameOf(n));
+    const tabs = [['all', 'TODAS LAS NOTICIAS'], ...games.map((g) => [g.id, g.title])];
+    if (games.length && general) tabs.push(['general', 'GENERAL']);
+    if (!tabs.some(([k]) => k === newsFilter)) newsFilter = 'all';
+    return tabs.map(([k, label]) => `<button type="button" class="ntab" role="tab" aria-selected="${k === newsFilter}" data-news-tab="${esc(k)}"><span>${esc(label)}</span></button>`).join('');
+  }
+
+  const filteredNews = (news) => news.filter((n) => (newsFilter === 'all' ? true : newsFilter === 'general' ? !gameOf(n) : n.game === newsFilter));
+
   function renderNews() {
     const wrap = $('#news');
+    if (!wrap) return;
     const news = byType('news');
+    const tabs = $('#newsTabs');
+    const isHome = wrap.dataset.limit !== undefined;
+    if (tabs) {
+      tabs.innerHTML = news.length > 1 ? newsTabs(news) : '';
+      tabs.hidden = !tabs.innerHTML;
+    }
+    const list = filteredNews(news);
     const more = $('#moreNews');
-    if (!news.length) {
-      wrap.innerHTML = '<div class="empty">SIN SEÑAL. NO HAY TRANSMISIONES.</div>';
-      more.hidden = true;
+    if (!list.length) {
+      wrap.innerHTML = '<div class="empty" style="grid-column:1/-1">SIN SEÑAL. NO HAY TRANSMISIONES.</div>';
+      if (more) more.hidden = true;
       return;
     }
-    wrap.innerHTML = news.slice(0, newsShown).map((n, i) => `
-      <button type="button" class="tape reveal" style="--d:${(i % NEWS_PAGE) * 0.07}s" data-open="${esc(n.id)}">
-        <div class="tape__media">
-          <div class="tape__osd"><span class="rec">● REC</span><span>${formatDate(n.createdAt, 'vhs')}</span></div>
-          ${media(n)}
-        </div>
-        <div class="tape__body">
-          <h3 class="tape__title">${esc(n.title)}</h3>
-          ${n.summary ? `<p class="tape__summary">${esc(n.summary)}</p>` : ''}
-          <div class="tape__label"><span>CINTA #${String(news.length - i).padStart(3, '0')}</span><span>REPRODUCIR ▶</span></div>
-        </div>
-      </button>`).join('');
-    more.hidden = news.length <= newsShown;
+    const limit = isHome ? Number(wrap.dataset.limit) : newsShown;
+    const wideFirst = !isHome && newsFilter === 'all' && list.length > 2;
+    wrap.innerHTML = list.slice(0, limit).map((n, i) => newsCard(n, i, wideFirst && i === 0)).join('');
+    if (more) more.hidden = isHome || list.length <= newsShown;
+    observeReveals(wrap);
   }
+
+  /* ------------------------------------------------------------------ */
+  /* Datos, galería y ticker                                             */
+  /* ------------------------------------------------------------------ */
 
   function renderScores() {
     const wrap = $('#scores');
+    if (!wrap) return;
     const data = byType('data').sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     if (!data.length) {
-      wrap.innerHTML = '<div class="empty" style="background:var(--bg)">SIN PUNTUACIONES REGISTRADAS</div>';
+      wrap.closest('section').hidden = true;
       return;
     }
     wrap.innerHTML = data.map((d, i) => {
@@ -361,12 +408,12 @@
           ${d.summary ? `<div class="score__note">${esc(d.summary)}</div>` : ''}
         </div>`;
     }).join('');
-    // Si el marcador ya apareció en pantalla antes de cargar los datos
     if (wrap.classList.contains('in')) wrap.querySelectorAll('[data-count]').forEach(countUp);
   }
 
   function renderGallery() {
     const wrap = $('#gallery');
+    if (!wrap) return;
     const imgs = byType('image');
     if (!imgs.length) {
       wrap.style.columns = 'auto';
@@ -380,23 +427,40 @@
       </button>`).join('');
   }
 
+  /**
+   * Cinta de titulares. Dos copias idénticas una detrás de otra: al
+   * desplazarse exactamente el ancho de una, el bucle no da saltos.
+   * La velocidad es fija (px por segundo) aunque cambie el texto.
+   */
   function renderTicker() {
-    const items = [...byType('news'), ...byType('app')].slice(0, 8);
-    const base = items.length
-      ? items.map((i) => `<span><a href="#ver-${esc(i.id)}">${esc(i.title)}</a></span>`)
-      : ['<span>BIENVENIDO A THE THING</span>', '<span>INSERT COIN</span>'];
-    const filler = ['<span>INSERT COIN</span>', '<span>PRESS START</span>'];
-    const row = [...base, ...filler].join('');
-    $('#ticker').innerHTML = row + row; // duplicado para el bucle infinito
+    const track = $('#ticker');
+    if (!track) return;
+    const items = [...byType('news').slice(0, 5), ...byType('app').slice(0, 4)];
+    const parts = items.map((i) => `<a href="${site.itemUrl(i)}" data-open="${esc(i.id)}">${esc(i.title)}</a>`);
+    parts.unshift('BIENVENIDOS A THE THING');
+    parts.push('INSERT COIN', 'PRESS START');
+    const group = parts.map((p) => `<span>${p}</span>`).join('');
+    track.innerHTML = `<div class="ticker__group">${group}</div><div class="ticker__group" aria-hidden="true">${group.replace(/<a /g, '<a tabindex="-1" ')}</div>`;
+    const fit = () => {
+      const w = track.firstElementChild.getBoundingClientRect().width;
+      track.style.setProperty('--ticker-dur', `${Math.max(18, w / 75).toFixed(1)}s`);
+      track.classList.add('run');
+    };
+    fit();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
   }
 
-  /* Votaciones: mejor juego y más jugado */
+  /* ------------------------------------------------------------------ */
+  /* Votaciones                                                          */
+  /* ------------------------------------------------------------------ */
+
   const VOTE_CATS = [
     { key: 'best', icon: '♛', title: 'Mejor juego', text: 'El que pondrías en tu salón de la fama.' },
     { key: 'played', icon: '▶', title: 'Más jugado', text: 'Al que más horas le has dedicado.' },
   ];
   function renderVotes() {
     const wrap = $('#votes');
+    if (!wrap) return;
     const games = byType('app');
     if (!games.length) {
       wrap.innerHTML = '<div class="empty" style="grid-column:1/-1">CUANDO HAYA JUEGOS PODRÁS VOTAR AQUÍ</div>';
@@ -437,14 +501,14 @@
   }
 
   async function vote(category, item) {
-    if (!me) return openAuth('register', 'Regístrate para votar', () => vote(category, item));
+    if (!me()) return account.openAuth('register', 'Regístrate para votar', () => vote(category, item));
     try {
       community = { ...community, ...(await api('api/community.php?action=vote', { json: { category, item } })) };
       beep('coin');
-      window.TT.toast('¡VOTO REGISTRADO!');
+      toast('¡VOTO REGISTRADO!');
       renderVotes();
     } catch (err) {
-      handleMemberError(err);
+      account.handleError(err);
     }
   }
 
@@ -460,7 +524,9 @@
 
   function renderTapes() {
     const shelf = $('#tapes');
+    if (!shelf) return;
     const vids = byType('video');
+    $('#shelfTip').textContent = vids.length ? 'Pasa el ratón por un cassette' : '';
     if (!vids.length) {
       shelf.innerHTML = '<p class="empty-msg">EL ESTANTE ESTÁ VACÍO… DE MOMENTO</p>';
       return;
@@ -478,14 +544,13 @@
   }
 
   const ytId = (url) => {
-    const m = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/|v\/)|youtu\.be\/)([\w-]{11})/);
+    const m = String(url).match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/|v\/)|youtu\.be\/)([\w-]{11})/);
     return m ? m[1] : null;
   };
   const vimeoId = (url) => {
     const m = String(url).match(/vimeo\.com\/(?:video\/)?(\d+)/);
     return m ? m[1] : null;
   };
-  /** Enlace para abrir el vídeo fuera (respaldo si el reproductor falla). */
   function externalLink(url) {
     const yt = ytId(url);
     if (yt) return `https://www.youtube.com/watch?v=${yt}`;
@@ -496,136 +561,125 @@
 
   /**
    * Reproductor según el tipo de enlace.
-   * YouTube exige saber desde qué web se reproduce (cabecera Referer). Al abrir
-   * la página como archivo local (file://) no la hay y YouTube muestra
-   * "Error 153", así que en ese caso se avisa y se ofrece abrirlo en YouTube.
+   * - YouTube y Vimeo son de terceros: solo se cargan si el visitante lo
+   *   permitió en el aviso de cookies (si no, se devuelve 'consent').
+   * - YouTube exige saber desde qué web se reproduce: abierto como archivo
+   *   (file://) no funciona y se devuelve 'file'.
    */
   function playerHtml(url) {
     const yt = ytId(url);
+    const vm = vimeoId(url);
+    if ((yt || vm) && !site.consent.media()) return 'consent';
     if (yt) {
-      if (location.protocol === 'file:') return null;
+      if (location.protocol === 'file:') return 'file';
       const origin = encodeURIComponent(location.origin);
-      return `<iframe src="https://www.youtube.com/embed/${yt}?autoplay=1&rel=0&playsinline=1&modestbranding=1&origin=${origin}" title="Vídeo de YouTube"
+      return `<iframe src="https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&rel=0&playsinline=1&modestbranding=1&origin=${origin}" title="Vídeo de YouTube"
         allow="autoplay; encrypted-media; picture-in-picture; fullscreen; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
     }
-    const vm = vimeoId(url);
     if (vm) {
-      return `<iframe src="https://player.vimeo.com/video/${vm}?autoplay=1" title="Vídeo de Vimeo" allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
+      return `<iframe src="https://player.vimeo.com/video/${vm}?autoplay=1&dnt=1" title="Vídeo de Vimeo" allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
     }
     return `<video src="${esc(url)}" controls autoplay playsinline></video>`;
   }
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, reduceMotion ? 0 : ms));
   const pad2 = (n) => String(n).padStart(2, '0');
-
-  function setVcr(mode, clock) {
+  const setVcr = (mode, clock) => {
     $('#vcrMode').textContent = mode;
     if (clock !== undefined) $('#vcrClock').textContent = clock;
-  }
+  };
 
-  /** Crea el cassette visto de frente (para la animación) sobre un rectángulo. */
-  function makeFlyingTape(v, i) {
+  /** Destello y chispas en el sitio del cassette (dentro del mueble, así no le afecta el scroll). */
+  function spark(spine) {
+    const host = spine.closest('.bookcase');
+    const hr = host.getBoundingClientRect();
+    const r = spine.getBoundingClientRect();
     const el = document.createElement('div');
-    el.className = 'tape-fly';
-    el.style.setProperty('--lc', labelColor(i));
-    el.innerHTML = `<span class="tape-fly__label">${esc(v.title)}</span><span class="tape-fly__win"><i></i><i></i></span>`;
-    document.body.appendChild(el);
-    return el;
+    el.className = 'spark';
+    el.style.left = `${r.left - hr.left + r.width / 2}px`;
+    el.style.top = `${r.top - hr.top + r.height / 2}px`;
+    el.innerHTML = `<i class="spark__flash"></i><i class="spark__ring"></i>${Array.from({ length: 12 }, (_, i) => `<b style="--a:${i * 30 + Math.round(Math.random() * 14)}deg; --l:${36 + Math.round(Math.random() * 46)}px"></b>`).join('')}`;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), 800);
   }
 
+  function startPlayback(v) {
+    const tv = $('#tv');
+    const screen = $('#tvGlass');
+    screen.querySelectorAll('iframe, video').forEach((el) => el.remove());
+    tv.classList.remove('playing', 'message', 'power-off', 'switching');
+    $('#tvCh').textContent = '03';
+    setVcr('PLAY ▶', '0:00');
+    $('#nowPlaying').innerHTML = `AHORA: <b>${esc(v.title)}</b>${v.summary ? ` — ${esc(v.summary)}` : ''}
+      <a href="${esc(externalLink(v.videoUrl))}" target="_blank" rel="noopener noreferrer">Ver en ${ytId(v.videoUrl) ? 'YouTube' : vimeoId(v.videoUrl) ? 'Vimeo' : 'otra pestaña'} ↗</a>`;
+    const html = playerHtml(v.videoUrl);
+    const service = ytId(v.videoUrl) ? 'YouTube' : 'Vimeo';
+    if (html === 'consent') {
+      tv.classList.add('playing', 'message', 'power-on');
+      $('#tvOsd').innerHTML = `<b>CONTENIDO DE ${service.toUpperCase()}</b>
+        <small style="animation:none">Este vídeo está alojado en ${service}, que puede usar cookies propias.<br>Para verlo aquí necesitamos tu permiso.</small>
+        <span class="crt__osd-btns"><button type="button" class="btn btn--sm" data-allow-media>▶ Permitir y reproducir</button>
+        <a href="${esc(externalLink(v.videoUrl))}" target="_blank" rel="noopener noreferrer">Ver en ${service} ↗</a></span>`;
+    } else if (html === 'file') {
+      tv.classList.add('playing', 'message', 'power-on');
+      $('#tvOsd').innerHTML = `<b>NO SE PUEDE REPRODUCIR AQUÍ</b>
+        <small style="animation:none">YouTube no funciona al abrir la web como archivo (file://).<br>En tu servidor (Hostinger o probar-con-php) sí funciona.</small>
+        <a href="${esc(externalLink(v.videoUrl))}" target="_blank" rel="noopener noreferrer">▶ Ver en YouTube ↗</a>`;
+    } else {
+      screen.insertAdjacentHTML('afterbegin', html);
+      tv.classList.add('playing', 'power-on', 'osd');
+    }
+    setTimeout(() => tv.classList.remove('power-on'), 750);
+    setTimeout(() => tv.classList.remove('osd'), 3300);
+    const start = Date.now();
+    clearInterval(vcrTimer);
+    vcrTimer = setInterval(() => {
+      const t = Math.floor((Date.now() - start) / 1000);
+      $('#vcrClock').textContent = `${Math.floor(t / 60)}:${pad2(t % 60)}`;
+      $('#vhsTime').textContent = `SP 0:${pad2(Math.floor(t / 60))}:${pad2(t % 60)}`;
+    }, 1000);
+  }
+
+  /** Clic en un cassette: sale del estante hacia ti, chispazo y a reproducir. */
   async function playTape(id) {
     const v = content.find((i) => i.id === id && i.type === 'video');
-    if (!v || busy) return;
+    if (!v || busy || playingTape === id) return;
     busy = true;
     const tv = $('#tv');
     const vcr = $('#vcr');
-    const screen = $('#tvGlass');
     try {
       if (playingTape) await ejectTape(true);
       const spine = document.querySelector(`.spine[data-tape="${CSS.escape(id)}"]`);
-      const idx = spine ? Number(spine.dataset.i) : 0;
       beep('select');
       setVcr('LOAD', '--:--');
-
-      // 1) Sacar el cassette del estante, girarlo y meterlo en la ranura
       if (spine && !reduceMotion) {
-        spine.classList.add('out');
-        const from = spine.getBoundingClientRect();
-        const slot = $('#vcrSlot').getBoundingClientRect();
-        const fly = makeFlyingTape(v, idx);
-        const w = 168;
-        const h = 92;
-        const sx = from.left + from.width / 2 - w / 2;
-        const sy = from.top + from.height / 2 - h / 2;
-        const ex = slot.left + slot.width / 2 - w / 2;
-        const ey = slot.top - h + 10;
-        Object.assign(fly.style, { left: '0px', top: '0px' });
-        await fly.animate([
-          { transform: `translate(${sx}px, ${sy}px) rotate(-90deg) scale(.55, 1.15)`, opacity: 0 },
-          { transform: `translate(${sx}px, ${sy - 60}px) rotate(-90deg) scale(.6, 1.1)`, opacity: 1, offset: 0.15 },
-          { transform: `translate(${(sx + ex) / 2}px, ${Math.min(sy, ey) - 90}px) rotate(-12deg) scale(1.05)`, opacity: 1, offset: 0.6 },
-          { transform: `translate(${ex}px, ${ey - 14}px) rotate(0deg) scale(1)`, opacity: 1, offset: 0.85 },
-          { transform: `translate(${ex}px, ${ey}px) rotate(0deg) scale(1)`, opacity: 1 },
-        ], { duration: 1100, easing: 'cubic-bezier(.55,0,.25,1)', fill: 'forwards' }).finished;
-        vcr.classList.add('open');
-        beep('blip');
-        await fly.animate([
-          { transform: `translate(${ex}px, ${ey}px)`, clipPath: 'inset(0 0 0 0)' },
-          { transform: `translate(${ex}px, ${ey + h - 6}px)`, clipPath: `inset(0 0 ${h - 6}px 0)` },
-        ], { duration: 520, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
-        fly.remove();
-        spine.classList.remove('out');
-        spine.classList.add('empty');
-      } else if (spine) {
+        spine.classList.add('pull');
+        await sleep(360);
+        spark(spine);
+        beep('coin');
+        await sleep(90);
+      }
+      if (spine) {
+        spine.classList.remove('pull');
         spine.classList.add('empty');
       }
-      vcr.classList.remove('open');
-      vcr.classList.add('has-tape');
+      vcr.classList.remove('zap');
+      void vcr.offsetWidth;
+      vcr.classList.add('has-tape', 'zap');
       playingTape = id;
-      beep('coin');
-
-      // 2) La tele sintoniza (estática) y se enciende el tubo
-      tv.classList.remove('playing', 'message', 'power-off');
-      tv.classList.add('switching');
-      $('#tvCh').textContent = '03';
-      $('#tvOsd').innerHTML = '<b>TRACKING…</b><small>▶ PLAY</small>';
-      setVcr('PLAY ▶', '0:00');
-      $('#nowPlaying').innerHTML = `AHORA: <b>${esc(v.title)}</b>${v.summary ? ` — ${esc(v.summary)}` : ''}
-        <a href="${esc(externalLink(v.videoUrl))}" target="_blank" rel="noopener noreferrer">Ver en ${ytId(v.videoUrl) ? 'YouTube' : 'otra pestaña'} ↗</a>`;
-      await sleep(850);
-
-      const html = playerHtml(v.videoUrl);
-      tv.classList.remove('switching');
-      if (!html) {
-        // Abierto como archivo local: YouTube no lo permite
-        tv.classList.add('playing', 'message');
-        $('#tvOsd').innerHTML = `<b>NO SE PUEDE REPRODUCIR AQUÍ</b>
-          <small style="animation:none">YouTube no funciona al abrir la web como archivo (file://).<br>En tu servidor (Hostinger o probar-con-php) sí funciona.</small>
-          <a href="${esc(externalLink(v.videoUrl))}" target="_blank" rel="noopener noreferrer">▶ Ver en YouTube ↗</a>`;
-      } else {
-        screen.insertAdjacentHTML('afterbegin', html);
-        tv.classList.add('playing', 'power-on', 'osd');
-        setTimeout(() => tv.classList.remove('power-on'), 750);
-        setTimeout(() => tv.classList.remove('osd'), 3300);
-      }
-      const start = Date.now();
-      clearInterval(vcrTimer);
-      vcrTimer = setInterval(() => {
-        const t = Math.floor((Date.now() - start) / 1000);
-        const clock = `${Math.floor(t / 60)}:${pad2(t % 60)}`;
-        $('#vcrClock').textContent = clock;
-        $('#vhsTime').textContent = `SP 0:${pad2(Math.floor(t / 60))}:${pad2(t % 60)}`;
-      }, 1000);
+      startPlayback(v);
+      // Si la pantalla no se ve entera (móvil, estante abajo), se desplaza hasta ella
+      const r = $('#tvGlass').getBoundingClientRect();
+      if (r.top < 70 || r.bottom > window.innerHeight) $('#tvGlass').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
     } finally {
       busy = false;
     }
   }
 
-  /** Expulsa el cassette: el tubo se apaga y la cinta vuelve al estante. */
+  /** Expulsa el cassette: el tubo se apaga y la cinta vuelve a su hueco. */
   async function ejectTape(silent = false) {
     if (!playingTape) return;
     const id = playingTape;
-    const v = content.find((i) => i.id === id);
     const tv = $('#tv');
     const vcr = $('#vcr');
     clearInterval(vcrTimer);
@@ -633,64 +687,53 @@
     setVcr('EJECT', '--:--');
     tv.classList.remove('osd');
     tv.classList.add('power-off');
-    await sleep(450);
+    await sleep(silent ? 260 : 420);
     $('#tvGlass').querySelectorAll('iframe, video').forEach((el) => el.remove());
     tv.classList.remove('playing', 'message', 'power-off');
     $('#tvOsd').innerHTML = '<b>SIN SEÑAL</b><small>SACA UN CASSETTE DEL ESTANTE</small>';
     $('#tvCh').textContent = '--';
     $('#nowPlaying').textContent = '';
     playingTape = null;
-
+    vcr.classList.remove('has-tape', 'zap');
     const spine = document.querySelector(`.spine[data-tape="${CSS.escape(id)}"]`);
-    if (spine && v && !reduceMotion) {
-      vcr.classList.add('open');
-      const slot = $('#vcrSlot').getBoundingClientRect();
-      const to = spine.getBoundingClientRect();
-      const fly = makeFlyingTape(v, Number(spine.dataset.i));
-      const ex = slot.left + slot.width / 2 - 84;
-      const ey = slot.top - 92 + 10;
-      const tx = to.left + to.width / 2 - 84;
-      const ty = to.top + to.height / 2 - 46;
-      Object.assign(fly.style, { left: '0px', top: '0px' });
-      vcr.classList.remove('has-tape');
-      await fly.animate([
-        { transform: `translate(${ex}px, ${ey + 86}px)`, clipPath: 'inset(0 0 86px 0)' },
-        { transform: `translate(${ex}px, ${ey}px)`, clipPath: 'inset(0 0 0 0)', offset: 0.3 },
-        { transform: `translate(${(ex + tx) / 2}px, ${Math.min(ey, ty) - 80}px) rotate(-30deg) scale(.9)`, offset: 0.65 },
-        { transform: `translate(${tx}px, ${ty}px) rotate(-90deg) scale(.55, 1.15)`, opacity: 0.2 },
-      ], { duration: 1000, easing: 'cubic-bezier(.4,0,.3,1)', fill: 'forwards' }).finished;
-      fly.remove();
-      vcr.classList.remove('open');
-    }
-    vcr.classList.remove('has-tape');
     if (spine) {
       spine.classList.remove('empty');
-      spine.animate([{ transform: 'translateY(-24px)' }, { transform: 'translateY(0)' }], { duration: 350, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+      spine.classList.add('back');
+      setTimeout(() => spine.classList.remove('back'), 520);
     }
     setVcr('STOP', '--:--');
   }
 
-  const tapesEl = $('#tapes');
-  tapesEl.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-tape]');
-    if (t) playTape(t.dataset.tape);
-  });
-  // Ficha del cassette al pasar el ratón
-  tapesEl.addEventListener('pointerover', (e) => {
-    const t = e.target.closest('[data-tape]');
-    const tip = $('#shelfTip');
-    if (!t) return;
-    const v = content.find((i) => i.id === t.dataset.tape);
-    if (v) tip.innerHTML = `<b>${esc(v.title)}</b>${v.summary ? `<br>${esc(v.summary)}` : ''}`;
-  });
-  tapesEl.addEventListener('pointerleave', () => { $('#shelfTip').textContent = 'Pasa el ratón por un cassette'; });
-  $('#vcrEject').addEventListener('click', () => { if (!busy) ejectTape(); });
-  $('#vcrStop').addEventListener('click', () => { if (!busy) ejectTape(); });
+  function initVideoClub() {
+    const tapesEl = $('#tapes');
+    if (!tapesEl) return;
+    tapesEl.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-tape]');
+      if (t) playTape(t.dataset.tape);
+    });
+    tapesEl.addEventListener('pointerover', (e) => {
+      const t = e.target.closest('[data-tape]');
+      if (!t) return;
+      const v = content.find((i) => i.id === t.dataset.tape);
+      if (v) $('#shelfTip').innerHTML = `<b>${esc(v.title)}</b>${v.summary ? `<br>${esc(v.summary)}` : ''}`;
+    });
+    tapesEl.addEventListener('pointerleave', () => { if (byType('video').length) $('#shelfTip').textContent = 'Pasa el ratón por un cassette'; });
+    $('#vcrEject').addEventListener('click', () => { if (!busy) ejectTape(); });
+    $('#vcrStop').addEventListener('click', () => { if (!busy) ejectTape(); });
+    $('#tv').addEventListener('click', (e) => {
+      if (!e.target.closest('[data-allow-media]')) return;
+      site.consent.allowMedia();
+      beep('coin');
+      const v = content.find((i) => i.id === playingTape);
+      if (v) startPlayback(v);
+    });
+  }
 
   function renderAll() {
+    renderFeatured();
+    renderExplore();
     renderGames();
     renderTapes();
-    $('#shelfTip').textContent = byType('video').length ? 'Pasa el ratón por un cassette' : '';
     renderVotes();
     renderNews();
     renderScores();
@@ -700,25 +743,30 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Modales                                                             */
+  /* Ficha de juego / noticia                                            */
   /* ------------------------------------------------------------------ */
 
   const detail = createModal();
   const lightbox = createModal('lightbox');
 
+  /** Abre un elemento en esta página. Devuelve false si hay que ir a otra. */
   function openItem(id, pushHash = true) {
     const item = content.find((i) => i.id === id);
-    if (!item) return;
-    if (item.type === 'image') return openShot(byType('image').indexOf(item));
+    if (!item) return false;
+    if (item.type === 'image') { openShot(byType('image').indexOf(item)); return true; }
     if (item.type === 'video') {
-      document.getElementById('videos').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
-      return setTimeout(() => playTape(item.id), reduceMotion ? 0 : 600);
+      if (!$('#tapes')) return false;
+      $('#videos').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+      setTimeout(() => playTape(item.id), reduceMotion ? 0 : 500);
+      return true;
     }
-    if (item.type === 'product') { window.location.href = `tienda.html#ver-${encodeURIComponent(item.id)}`; return; }
+    if (item.type !== 'app' && item.type !== 'news') return false;
     const isApp = item.type === 'app';
+    const game = isApp ? null : gameOf(item);
     const tags = [
       isApp && item.status ? `<span class="tag ${statusClass(item.status)}">${esc(item.status)}</span>` : '',
       isApp && item.platform ? `<span class="tag">${esc(item.platform)}</span>` : '',
+      game ? `<span class="tag tag--live">${esc(game.title)}</span>` : '',
       `<span class="tag">${formatDate(item.createdAt)}</span>`,
     ].join(' ');
     detail.open(`
@@ -735,6 +783,8 @@
         <div class="prose">${formatText(item.body)}</div>
         <div class="modal__actions">
           ${item.link ? `<a class="btn btn--solid" href="${esc(item.link)}" target="_blank" rel="noopener noreferrer">${isApp ? '▶ Jugar / descargar' : 'Ver enlace'}</a>` : ''}
+          ${game ? `<button class="btn" type="button" data-open="${esc(game.id)}">▶ Ver ${esc(game.title)}</button>` : ''}
+          ${isApp ? `<a class="btn" href="soporte.html?tipo=juegos&juego=${encodeURIComponent(item.id)}#contacto">? Soporte del juego</a>` : ''}
           <button class="btn" type="button" data-close>◀ Volver</button>
         </div>
       </article>
@@ -743,28 +793,31 @@
     });
     if (pushHash) history.replaceState(null, '', `#ver-${id}`);
     loadReviews(item);
+    return true;
   }
+  window.TT.openItem = (id) => openItem(id);
 
   /* ------------------------------------------------------------------ */
   /* Reseñas (juegos) y comentarios (noticias) en formato "código retro" */
   /* ------------------------------------------------------------------ */
 
-  // Cada jugador tiene su color (como P1, P2, P3… en las recreativas), distinto al del texto
   const PLAYER_COLORS = ['#38e8ff', '#ffb547', '#ff7ad9', '#b18cff', '#ff5f6d', '#7ad7ff', '#ffd84d'];
   const playerColor = (name) => PLAYER_COLORS[[...String(name)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % PLAYER_COLORS.length];
   const reviewCode = (id) => (String(id).toUpperCase().replace(/[^0-9A-F]/g, '') + '000000000000').slice(0, 12).match(/.{4}/g).join('-');
+  const REPORT_REASONS = [['spam', 'Spam o publicidad'], ['ofensivo', 'Insultos u odio'], ['acoso', 'Acoso'], ['spoiler', 'Spoiler'], ['ilegal', 'Contenido ilegal'], ['otro', 'Otro motivo']];
   let reviewsToken = 0;
+  let currentItem = null;
 
   async function loadReviews(item) {
+    currentItem = item;
     const token = ++reviewsToken;
     let list = [];
     if (online) {
       try { list = await api(`api/community.php?action=comments&item=${encodeURIComponent(item.id)}`); } catch { list = null; }
     }
-    if (token !== reviewsToken) return;     // se abrió otro elemento mientras cargaba
+    if (token !== reviewsToken) return;
     const box = document.getElementById('reviews');
-    if (!box) return;
-    renderReviews(box, item, list);
+    if (box) renderReviews(box, item, list);
   }
 
   function renderReviews(box, item, list) {
@@ -781,7 +834,7 @@
       : `<h3>COMENTARIOS (${list.length})</h3>`;
 
     let form;
-    if (!me) {
+    if (!me()) {
       form = `<div class="login-cta"><span>&gt; INICIA SESIÓN PARA ${isApp ? 'DEJAR TU RESEÑA' : 'COMENTAR'}</span>
         <button class="btn btn--sm" type="button" data-auth="register">Nuevo jugador</button></div>`;
     } else {
@@ -797,6 +850,7 @@
           <label class="tt-field"><span class="sr-only">Mensaje</span>
             <textarea name="text" maxlength="1000" required placeholder="${isApp ? '¿Qué te pareció el juego?' : 'Escribe aquí…'}">${isApp && mine ? esc(mine.text) : ''}</textarea>
           </label>
+          <p class="review-form__rules">Sé respetuoso: sin insultos, spam ni datos personales. <a href="normas.html" target="_blank">Normas de la comunidad</a></p>
           <p class="tt-error" role="alert"></p>
           <div><button class="btn btn--solid btn--sm" type="submit">▶ ${isApp ? 'Enviar reseña' : 'Publicar'}</button></div>
         </form>`;
@@ -810,7 +864,10 @@
         </div>
         <p class="code-card__who">&gt; PLAYER: <span class="player" style="--pc:${playerColor(c.name)}">${esc(c.name.toUpperCase())}</span> · ${formatDate(c.createdAt, 'vhs')}${c.updatedAt !== c.createdAt ? ' · EDITADO' : ''}</p>
         <p class="code-card__text">${esc(c.text)}</p>
-        ${c.canDelete ? `<button class="code-card__del" type="button" data-del-comment="${esc(c.id)}">[ BORRAR ]</button>` : ''}
+        <div class="code-card__actions">
+          ${c.canDelete ? `<button class="code-card__del" type="button" data-del-comment="${esc(c.id)}">[ BORRAR ]</button>` : ''}
+          ${!c.mine ? `<button class="code-card__del" type="button" data-report="${esc(c.id)}">[ DENUNCIAR ]</button>` : ''}
+        </div>
       </article>`).join('');
 
     box.innerHTML = `<div class="reviews__head">${head}</div>${form}<div class="code-list">${cards}</div>`;
@@ -823,10 +880,29 @@
       if (!window.confirm('¿Borrar este mensaje?')) return;
       try {
         await api('api/community.php?action=delete_comment', { json: { id: b.dataset.delComment } });
-        window.TT.toast('MENSAJE BORRADO');
+        toast('MENSAJE BORRADO');
         await refreshCommunity();
         loadReviews(item);
-      } catch (err) { handleMemberError(err); }
+      } catch (err) { account.handleError(err); }
+    }));
+    box.querySelectorAll('[data-report]').forEach((b) => b.addEventListener('click', () => {
+      if (!me()) return account.openAuth('login', 'Inicia sesión para denunciar un comentario');
+      const card = b.closest('.code-card');
+      if (card.querySelector('.report-box')) return;
+      card.insertAdjacentHTML('beforeend', `
+        <div class="report-box">
+          <label class="tt-field"><span>¿POR QUÉ LO DENUNCIAS?</span>
+            <select>${REPORT_REASONS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></label>
+          <button class="btn btn--sm btn--danger" type="button">Enviar denuncia</button>
+        </div>`);
+      const rb = card.querySelector('.report-box');
+      rb.querySelector('button').addEventListener('click', async () => {
+        try {
+          await api('api/community.php?action=report', { json: { id: b.dataset.report, reason: rb.querySelector('select').value } });
+          rb.innerHTML = '<p class="term" style="color:var(--acc);margin:0">✓ GRACIAS. EL EQUIPO LO REVISARÁ.</p>';
+          beep('coin');
+        } catch (err) { account.handleError(err); }
+      });
     }));
     if (!form) return;
     const stars = [...form.querySelectorAll('[data-star]')];
@@ -834,8 +910,7 @@
       const n = Number(b.dataset.star);
       form.rating.value = n;
       stars.forEach((s) => {
-        const on = Number(s.dataset.star) <= n;
-        s.classList.toggle('on', on);
+        s.classList.toggle('on', Number(s.dataset.star) <= n);
         s.setAttribute('aria-checked', String(Number(s.dataset.star) === n));
       });
       b.classList.remove('pop');
@@ -854,11 +929,11 @@
       try {
         await api('api/community.php?action=comment', { json: payload });
         beep('coin');
-        window.TT.toast(item.type === 'app' ? '¡RESEÑA GUARDADA!' : '¡COMENTARIO PUBLICADO!');
+        toast(item.type === 'app' ? '¡RESEÑA GUARDADA!' : '¡COMENTARIO PUBLICADO!');
         await refreshCommunity();
         loadReviews(item);
       } catch (ex) {
-        if (ex.status === 401) handleMemberError(ex);
+        if (ex.status === 401) account.handleError(ex);
         else { err.textContent = `✖ ${ex.message}`; beep('error'); }
         btn.disabled = false;
       }
@@ -870,15 +945,22 @@
     try {
       community = await api('api/community.php?action=summary');
       renderGames();
+      renderFeatured();
       renderVotes();
       observeReveals();
     } catch { /* sin conexión */ }
   }
 
+  account.onChange(() => {
+    refreshCommunity();
+    if (detail.isOpen() && currentItem) loadReviews(currentItem);
+  });
+
+  /* Galería: visor */
   let shotIndex = 0;
   function openShot(index) {
     const imgs = byType('image');
-    if (!imgs.length) return;
+    if (!imgs.length || index < 0) return;
     shotIndex = (index + imgs.length) % imgs.length;
     const g = imgs[shotIndex];
     const html = `
@@ -910,365 +992,67 @@
     if (e.key === 'ArrowRight') openShot(shotIndex + 1);
   });
 
+  /* ------------------------------------------------------------------ */
+  /* Clics                                                               */
+  /* ------------------------------------------------------------------ */
+
   document.addEventListener('click', (e) => {
     const open = e.target.closest('[data-open]');
-    if (open) return openItem(open.dataset.open);
+    if (open) {
+      if (openItem(open.dataset.open) !== false) e.preventDefault();
+      return;
+    }
     const shot = e.target.closest('[data-shot]');
     if (shot) return openShot(Number(shot.dataset.shot));
-    const tick = e.target.closest('.ticker a[href^="#ver-"]');
-    if (tick) {
-      e.preventDefault();
-      openItem(tick.getAttribute('href').slice(5));
+    const v = e.target.closest('[data-vote]');
+    if (v) return vote(v.dataset.vote, v.dataset.item);
+    const tab = e.target.closest('[data-news-tab]');
+    if (tab) {
+      newsFilter = tab.dataset.newsTab;
+      newsShown = NEWS_PAGE;
+      beep('blip');
+      renderNews();
+      return;
+    }
+    const gf = e.target.closest('[data-game-filter]');
+    if (gf) {
+      gameFilter = gf.dataset.gameFilter;
+      document.querySelectorAll('[data-game-filter]').forEach((b) => b.setAttribute('aria-pressed', String(b === gf)));
+      beep('blip');
+      renderGames();
+      observeReveals();
     }
   });
 
-  $('#moreNews').addEventListener('click', () => {
+  const moreNews = $('#moreNews');
+  if (moreNews) moreNews.addEventListener('click', () => {
     newsShown += NEWS_PAGE;
     renderNews();
-    observeReveals($('#news'));
   });
 
   window.addEventListener('hashchange', () => {
-    if (location.hash.startsWith('#ver-')) openItem(location.hash.slice(5), false);
+    if (location.hash.startsWith('#ver-')) openItem(decodeURIComponent(location.hash.slice(5)), false);
   });
-
-  /* ------------------------------------------------------------------ */
-  /* Jugadores: registro, inicio de sesión, avisos                       */
-  /* ------------------------------------------------------------------ */
-
-  const authModal = createModal('modal--small');
-  const drawer = createModal('modal--drawer');
-  const accountModal = createModal('modal--small');
-  let pendingAction = null;
-  let lastUnread = 0;
-  const USER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
-  const closeBtn = `<button class="icon-btn modal__close" type="button" data-close title="Cerrar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
-      <span class="sr-only">Cerrar</span></button>`;
-
-  /** Si la sesión caducó, pide entrar de nuevo. Devuelve true si gestionó el error. */
-  function handleMemberError(err) {
-    if (err.status === 401) {
-      setMember(null);
-      openAuth('login', 'Tu sesión terminó. Vuelve a entrar.');
-      return true;
-    }
-    window.TT.toast(err.message, 'error');
-    return true;
-  }
-
-  function setMember(member, unread = 0) {
-    me = member;
-    const btn = $('#acctBtn');
-    const bell = $('#bellBtn');
-    if (me) {
-      btn.innerHTML = `<span class="initial" aria-hidden="true">${esc(me.name.charAt(0).toUpperCase())}</span><span class="acct-label">${esc(me.name)}</span>`;
-      btn.title = 'Mi cuenta';
-      bell.hidden = false;
-    } else {
-      btn.innerHTML = `${USER_ICON}<span class="acct-label">Entrar</span>`;
-      btn.title = 'Entrar o registrarse';
-      bell.hidden = true;
-    }
-    setUnread(unread);
-  }
-
-  function setUnread(n) {
-    const badge = $('#bellBadge');
-    badge.hidden = !n;
-    badge.textContent = n > 9 ? '9+' : String(n);
-    if (n > lastUnread) {
-      const bell = $('#bellBtn');
-      bell.classList.remove('ring');
-      void bell.offsetWidth;
-      bell.classList.add('ring');
-    }
-    lastUnread = n;
-  }
-
-  function openAuth(mode = 'login', reason = '', after = null) {
-    if (!online) return window.TT.toast('Las cuentas necesitan el servidor PHP (súbelo a Hostinger)', 'error');
-    pendingAction = after;
-    authModal.open(`${closeBtn}<div class="auth" id="authBox"></div>`);
-    renderAuth(mode, reason);
-  }
-
-  function renderAuth(mode, reason) {
-    const box = $('#authBox');
-    const isReg = mode === 'register';
-    box.innerHTML = `
-      <img class="auth__logo" src="assets/img/logo-small.webp" alt="" width="90" height="98">
-      <h2>${isReg ? 'NUEVO JUGADOR' : 'CONTINUAR PARTIDA'}</h2>
-      <p class="auth__sub">${esc(reason || (isReg ? 'Crea tu cuenta para votar, dejar reseñas y recibir avisos.' : 'Entra con tu correo y contraseña.'))}</p>
-      <div class="tabs" role="tablist">
-        <button type="button" role="tab" aria-selected="${!isReg}" data-mode="login">Continuar</button>
-        <button type="button" role="tab" aria-selected="${isReg}" data-mode="register">Nuevo jugador</button>
-      </div>
-      <form class="tt-form" id="authForm" novalidate>
-        ${isReg ? '<label class="tt-field"><span>NOMBRE DE JUGADOR</span><input name="name" maxlength="24" autocomplete="nickname" required data-autofocus placeholder="3 a 24 letras o números"></label>' : ''}
-        <label class="tt-field"><span>CORREO</span><input name="email" type="email" autocomplete="email" required ${isReg ? '' : 'data-autofocus'}></label>
-        <label class="tt-field"><span>CONTRASEÑA${isReg ? ' (mín. 8)' : ''}</span><input name="password" type="password" autocomplete="${isReg ? 'new-password' : 'current-password'}" required minlength="8"></label>
-        ${isReg ? `
-          <label class="tt-check"><input type="checkbox" name="emailNotify"> Quiero recibir por correo los avisos de juegos nuevos y noticias (puedes darte de baja cuando quieras).</label>
-          <div class="hp" aria-hidden="true"><label>Web <input name="website" tabindex="-1" autocomplete="off"></label></div>` : ''}
-        <p class="tt-error" role="alert"></p>
-        <button class="btn btn--solid" type="submit" style="justify-content:center">▶ ${isReg ? 'Crear cuenta' : 'Entrar'}</button>
-      </form>`;
-    box.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { beep('blip'); renderAuth(b.dataset.mode, reason); }));
-    const form = $('#authForm');
-    setTimeout(() => { const f = form.querySelector('[data-autofocus]'); if (f) f.focus(); }, 60);
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const err = form.querySelector('.tt-error');
-      err.textContent = '';
-      const btn = form.querySelector('[type=submit]');
-      const data = {
-        email: form.email.value.trim(),
-        password: form.password.value,
-      };
-      if (isReg) {
-        data.name = form.elements.name.value.trim();
-        data.emailNotify = form.emailNotify.checked;
-        data.website = form.website.value;
-        if (data.name.length < 3) { err.textContent = '✖ El nombre debe tener al menos 3 caracteres'; return beep('error'); }
-        if (data.password.length < 8) { err.textContent = '✖ La contraseña necesita 8 caracteres o más'; return beep('error'); }
-      }
-      btn.disabled = true;
-      try {
-        const res = await api(`api/members.php?action=${isReg ? 'register' : 'login'}`, { json: data });
-        setMember(res.member, res.unread);
-        authModal.close();
-        beep('coin');
-        window.TT.toast(isReg ? `¡BIENVENIDO, ${res.member.name.toUpperCase()}!` : `¡HOLA DE NUEVO, ${res.member.name.toUpperCase()}!`);
-        await refreshCommunity();
-        startPolling();
-        if (isReg) setTimeout(offerBrowserNotifications, 900);
-        const action = pendingAction;
-        pendingAction = null;
-        if (action) action();
-        else if (detail.isOpen()) {
-          const id = location.hash.startsWith('#ver-') ? location.hash.slice(5) : '';
-          const item = content.find((i) => i.id === id);
-          if (item) loadReviews(item);
-        }
-      } catch (ex) {
-        err.textContent = `✖ ${ex.message}`;
-        beep('error');
-        btn.disabled = false;
-        const card = authModal.panel;
-        card.animate([{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'none' }], { duration: 260 });
-      }
-    });
-  }
-
-  /* Avisos del navegador (Notification API): funcionan con la web abierta */
-  function browserNotifySupported() {
-    return 'Notification' in window && window.isSecureContext;
-  }
-  function offerBrowserNotifications() {
-    if (!browserNotifySupported() || Notification.permission !== 'default') return;
-    window.TT.toast('Activa los avisos del navegador desde tu cuenta para no perderte nada');
-  }
-
-  async function openDrawer() {
-    drawer.open(`${closeBtn}<div class="drawer"><h2>AVISOS</h2><p class="drawer__sub">Novedades, noticias y juegos nuevos.</p><div class="notif-list" id="notifList"><p class="term" style="color:var(--muted)">CARGANDO…</p></div></div>`);
-    try {
-      const res = await api('api/members.php?action=notifications');
-      const list = $('#notifList');
-      if (!list) return;
-      list.innerHTML = res.items.map((n, i) => {
-        const unread = n.createdAt > (res.lastSeen || '');
-        const kind = { news: 'Noticia', app: 'Juego', image: 'Galería', data: 'Dato', video: 'Vídeo', product: 'Tienda', aviso: 'Aviso' }[n.kind] || 'Aviso';
-        const inner = `
-          <span class="notif__meta"><span class="kind">${unread ? '● ' : ''}${kind}</span><span>${formatDate(n.createdAt, 'vhs')}</span></span>
-          <span class="notif__title">${esc(n.title)}</span>
-          ${n.text ? `<span class="notif__text">${esc(n.text)}</span>` : ''}`;
-        return n.item && content.some((c) => c.id === n.item)
-          ? `<button type="button" class="notif${unread ? ' unread' : ''}" style="--d:${Math.min(i, 10) * 0.04}s" data-notif-item="${esc(n.item)}">${inner}</button>`
-          : `<div class="notif${unread ? ' unread' : ''}" style="--d:${Math.min(i, 10) * 0.04}s">${inner}</div>`;
-      }).join('') || '<p class="term" style="color:var(--muted)">SIN AVISOS TODAVÍA</p>';
-      list.querySelectorAll('[data-notif-item]').forEach((b) => b.addEventListener('click', () => {
-        drawer.close();
-        setTimeout(() => openItem(b.dataset.notifItem), 320);
-      }));
-      if (res.unread) {
-        await api('api/members.php?action=seen', { method: 'POST' });
-        setUnread(0);
-        rememberNotified(res.items[0] && res.items[0].createdAt);
-      }
-    } catch (err) {
-      drawer.close();
-      handleMemberError(err);
-    }
-  }
-
-  function openAccount() {
-    const notifState = !browserNotifySupported()
-      ? '<p class="drawer__sub">Tu navegador no admite avisos (o la web no usa HTTPS).</p>'
-      : Notification.permission === 'granted'
-        ? '<p class="drawer__sub" style="color:var(--acc)">✓ Avisos del navegador activados.</p>'
-        : Notification.permission === 'denied'
-          ? '<p class="drawer__sub">Bloqueaste los avisos: actívalos en la configuración del navegador.</p>'
-          : '<button class="btn btn--sm" type="button" id="enableNotif">🔔 Activar avisos del navegador</button>';
-    accountModal.open(`${closeBtn}
-      <div class="auth">
-        <h2>${esc(me.name.toUpperCase())}</h2>
-        <p class="auth__sub">${esc(me.email)} · jugador desde ${formatDate(me.createdAt)}</p>
-        <div class="tt-form">
-          <label class="tt-check"><input type="checkbox" id="prefEmail"${me.emailNotify ? ' checked' : ''}> Recibir avisos de novedades por correo</label>
-          ${notifState}
-          <button class="btn" type="button" id="openNotifs" style="justify-content:center">Ver mis avisos</button>
-          <button class="btn btn--danger" type="button" id="logoutMember" style="justify-content:center">Cerrar sesión</button>
-        </div>
-      </div>`);
-    $('#prefEmail').addEventListener('change', async (e) => {
-      try {
-        const res = await api('api/members.php?action=prefs', { json: { emailNotify: e.target.checked } });
-        me = res.member;
-        window.TT.toast(me.emailNotify ? 'Recibirás los avisos por correo' : 'Ya no recibirás correos');
-      } catch (err) { e.target.checked = !e.target.checked; handleMemberError(err); }
-    });
-    const enable = $('#enableNotif');
-    if (enable) enable.addEventListener('click', async () => {
-      const perm = await Notification.requestPermission();
-      if (perm === 'granted') {
-        new Notification('THE THING', { body: '¡Avisos activados! Te avisaremos de las novedades.', icon: 'assets/img/apple-touch-icon.png' });
-        window.TT.toast('Avisos del navegador activados');
-      }
-      accountModal.close();
-    });
-    $('#openNotifs').addEventListener('click', () => { accountModal.close(); setTimeout(openDrawer, 320); });
-    $('#logoutMember').addEventListener('click', async () => {
-      try { await api('api/members.php?action=logout', { method: 'POST' }); } catch { /* ignore */ }
-      accountModal.close();
-      setMember(null);
-      stopPolling();
-      window.TT.toast('SESIÓN CERRADA. ¡HASTA PRONTO!');
-      refreshCommunity();
-    });
-  }
-
-  function rememberNotified(createdAt) {
-    if (createdAt) window.TT.store.set('tt-notified', createdAt);
-  }
-
-  /* Comprueba avisos nuevos cada minuto */
-  let pollTimer = null;
-  function startPolling() {
-    stopPolling();
-    pollTimer = setInterval(checkUnread, 60000);
-  }
-  function stopPolling() {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
-  async function checkUnread() {
-    if (!me || document.hidden && !(browserNotifySupported() && Notification.permission === 'granted')) return;
-    try {
-      const res = await api('api/members.php?action=me');
-      if (!res.member) { setMember(null); stopPolling(); return; }
-      const before = lastUnread;
-      setUnread(res.unread);
-      if (res.unread > before && browserNotifySupported() && Notification.permission === 'granted') {
-        const list = await api('api/members.php?action=notifications');
-        const already = window.TT.store.get('tt-notified', '');
-        list.items.filter((n) => n.createdAt > already && n.createdAt > (list.lastSeen || '')).slice(0, 3).forEach((n) => {
-          const note = new Notification(n.title, { body: n.text || 'Novedad en THE THING', icon: 'assets/img/apple-touch-icon.png', tag: n.id });
-          note.onclick = () => { window.focus(); if (n.item) openItem(n.item); note.close(); };
-        });
-        rememberNotified(list.items[0] && list.items[0].createdAt);
-      }
-    } catch { /* sin conexión: se reintenta en el próximo ciclo */ }
-  }
-
-  $('#acctBtn').addEventListener('click', () => (me ? openAccount() : openAuth('login')));
-  $('#bellBtn').addEventListener('click', openDrawer);
-  document.addEventListener('click', (e) => {
-    const join = e.target.closest('[data-join]');
-    if (join) return me ? openAccount() : openAuth('register');
-    const auth = e.target.closest('[data-auth]');
-    if (auth) return openAuth(auth.dataset.auth);
-    const v = e.target.closest('[data-vote]');
-    if (v) vote(v.dataset.vote, v.dataset.item);
-  });
-
-  /* ------------------------------------------------------------------ */
-  /* ¿Continuar? (cuenta regresiva arcade)                               */
-  /* ------------------------------------------------------------------ */
-
-  function initCountdown() {
-    const el = $('#countdown');
-    let n = 9;
-    let timer = null;
-    const io = new IntersectionObserver(([en]) => {
-      if (en.isIntersecting && !timer && !reduceMotion) {
-        timer = setInterval(() => {
-          n = n <= 0 ? 9 : n - 1;
-          el.textContent = n;
-          el.classList.remove('tick');
-          void el.offsetWidth; // reinicia la animación
-          el.classList.add('tick');
-        }, 1000);
-      } else if (!en.isIntersecting && timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-    });
-    io.observe(el);
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Código Konami: ↑ ↑ ↓ ↓ ← → ← → B A                                  */
-  /* ------------------------------------------------------------------ */
-
-  function initKonami() {
-    const code = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-    let pos = 0;
-    document.addEventListener('keydown', (e) => {
-      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-      pos = key === code[pos] ? pos + 1 : (key === code[0] ? 1 : 0);
-      if (pos === code.length) {
-        pos = 0;
-        document.body.classList.add('chaos');
-        window.TT.toast('MODO CAOS ACTIVADO. LA COSA DESPERTÓ.');
-        beep('select');
-        setTimeout(() => document.body.classList.remove('chaos'), 4000);
-      }
-    });
-  }
 
   /* ------------------------------------------------------------------ */
   /* Arranque                                                            */
   /* ------------------------------------------------------------------ */
 
-  initHeader();
   initHero();
   initCat();
   initCountdown();
-  initKonami();
+  initVideoClub();
   observeReveals();
 
-  const loaded = Promise.all([
-    api('api/content.php'),
-    api('api/community.php?action=summary').catch(() => null),
-    api('api/members.php?action=me').catch(() => null),
-  ])
-    .then(([items, summary, session]) => {
-      content = items;
-      if (summary) community = summary;
-      if (session && session.member) {
-        setMember(session.member, session.unread);
-        startPolling();
-        checkUnread();
-      }
-    })
-    .catch(() => {
-      content = DEMO;
-      online = false;
-    })
-    .then(renderAll);
+  const loaded = site.ready.then((data) => {
+    content = data.content;
+    online = data.online;
+    if (data.community) community = data.community;
+    renderAll();
+  });
 
   Promise.all([runBoot(), loaded]).then(() => {
-    if (location.hash.startsWith('#ver-')) openItem(location.hash.slice(5), false);
+    if (site.page === 'home') site.showCookieBar();
+    if (location.hash.startsWith('#ver-')) openItem(decodeURIComponent(location.hash.slice(5)), false);
   });
 })();

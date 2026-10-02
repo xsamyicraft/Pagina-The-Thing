@@ -133,6 +133,83 @@ function mail_welcome(string $name, string $unsub): array
     return [mail_layout('Tu cuenta de jugador está lista', $inner, $foot), $text];
 }
 
+/** Bloque con el código de la consulta de soporte. */
+function mail_ticket_code(string $code): string
+{
+    $c = MAIL_C;
+    return '<p style="margin:18px 0;text-align:center"><span style="display:inline-block;padding:10px 18px;border:4px double ' . $c['red'] . ';background:#000;color:' . $c['green'] . ';font-size:22px;font-weight:bold;letter-spacing:4px">' . mail_e($code) . '</span></p>';
+}
+
+function mail_quote(string $text): string
+{
+    $c = MAIL_C;
+    return '<p style="margin:0;padding:12px 14px;border-left:3px solid ' . $c['red'] . ';background:#0a0a0c;color:' . $c['text'] . '">' . nl2br(mail_e($text)) . '</p>';
+}
+
+/** Confirmación al usuario: recibimos su consulta. */
+function mail_ticket_user(array $t, string $link): array
+{
+    $c = MAIL_C;
+    $inner = mail_eyebrow('Soporte · consulta recibida')
+        . '<p style="margin:0 0 8px;color:' . $c['muted'] . '">Hola <span style="color:' . $c['green'] . '">' . mail_e($t['name']) . '</span>,</p>'
+        . mail_title($t['subject'])
+        . '<p style="margin:0;color:' . $c['muted'] . '">Recibimos tu mensaje y te responderemos lo antes posible. Guarda este código para seguir tu consulta:</p>'
+        . mail_ticket_code($t['code'])
+        . mail_quote($t['messages'][0]['text'])
+        . mail_button($link, 'Ver mi consulta');
+    $text = "Hola {$t['name']}:
+
+Recibimos tu consulta «{$t['subject']}».
+Código: {$t['code']}
+
+Puedes seguirla aquí: {$link}
+
+— Soporte de THE THING";
+    return [mail_layout('Recibimos tu consulta ' . $t['code'], $inner), $text];
+}
+
+/** Aviso al administrador: nueva consulta o respuesta del usuario. */
+function mail_ticket_admin(array $t, string $text, bool $isReply, string $link): array
+{
+    $c = MAIL_C;
+    $inner = mail_eyebrow($isReply ? 'Soporte · nueva respuesta' : 'Soporte · nueva consulta')
+        . mail_title($t['subject'])
+        . '<p style="margin:0 0 14px;padding:12px 14px;border:4px double ' . $c['red'] . ';background:#000;color:' . $c['green'] . '">&gt; CÓDIGO: ' . mail_e($t['code'])
+        . '<br>&gt; DE: ' . mail_e($t['name']) . ' &lt;' . mail_e($t['email']) . '&gt;<br>&gt; TIPO: ' . mail_e($t['categoryLabel']) . '</p>'
+        . mail_quote($text)
+        . mail_button($link, 'Responder en el panel');
+    $plain = "Consulta {$t['code']} de {$t['name']} <{$t['email']}>
+Tipo: {$t['categoryLabel']}
+Asunto: {$t['subject']}
+
+{$text}
+
+Responder: {$link}";
+    return [mail_layout(($isReply ? 'Respuesta en ' : 'Nueva consulta ') . $t['code'], $inner), $plain];
+}
+
+/** Respuesta del equipo al usuario. */
+function mail_ticket_answer(array $t, string $answer, bool $closed, string $link): array
+{
+    $c = MAIL_C;
+    $inner = mail_eyebrow('Soporte · respuesta del equipo')
+        . '<p style="margin:0 0 8px;color:' . $c['muted'] . '">Hola <span style="color:' . $c['green'] . '">' . mail_e($t['name']) . '</span>,</p>'
+        . mail_title($t['subject'])
+        . mail_quote($answer)
+        . '<p style="margin:16px 0 0;color:' . $c['muted'] . '">' . ($closed ? 'Dimos tu consulta por resuelta. Si necesitas algo más, puedes responder desde la web y se volverá a abrir.' : 'Puedes contestar desde la web con tu código:') . '</p>'
+        . mail_ticket_code($t['code'])
+        . mail_button($link, 'Ver la conversación');
+    $text = "Hola {$t['name']}:
+
+{$answer}
+
+Código de tu consulta: {$t['code']}
+{$link}
+
+— Soporte de THE THING";
+    return [mail_layout('Respuesta a tu consulta ' . $t['code'], $inner), $text];
+}
+
 /* ------------------------------------------------------------------ */
 /* Envío                                                               */
 /* ------------------------------------------------------------------ */

@@ -38,6 +38,11 @@
       googleplay: { configured: false },
       pin: null,
       pendingPin: false,
+      tickets: [],
+      reports: [],
+      settings: {},
+      captcha: null,
+      captchaTokens: [],
       content: [
         item(2, { type: 'app', title: 'PROYECTO: THE THING', platform: 'PC', status: 'En desarrollo', featured: true, appKey: 'demo1a2b3', downloads: '15300',
           summary: 'Nuestro primer título. Un survival de terror retro donde nada es lo que parece… ni siquiera el gato.',
@@ -45,7 +50,7 @@
         item(1, { type: 'news', title: 'Bienvenidos a THE THING', featured: true,
           summary: 'Nace un nuevo estudio independiente de videojuegos. Esto es lo que viene.',
           body: 'Hoy encendemos la máquina por primera vez.\n\n**THE THING** es un estudio nuevo con una idea clara: hacer juegos raros, memorables y con alma de cartucho viejo.' }),
-        item(0, { type: 'news', title: 'Diario de desarrollo #0', summary: 'Primeros bocetos, primeras ideas y demasiadas tazas de café.',
+        item(0, { type: 'news', title: 'Diario de desarrollo #0', game: '__app__', summary: 'Primeros bocetos, primeras ideas y demasiadas tazas de café.',
           body: 'Esta es una noticia de ejemplo. Puedes editarla o borrarla desde el panel de administración.' }),
         item(5, { type: 'product', title: 'Camiseta "The Thing"', price: '24.99', sizes: 'S, M, L, XL', status: 'Disponible',
           summary: 'Camiseta negra 100% algodón con el gato glitch.', image: 'assets/img/logo-small.webp' }),
@@ -59,15 +64,24 @@
     };
   }
 
+  function fresh() {
+    const db = seed();
+    const app = db.content.find((i) => i.type === 'app');
+    db.content.forEach((i) => { if (i.game === '__app__') i.game = app.id; });
+    return db;
+  }
+
   function load() {
     try {
       const db = JSON.parse(localStorage.getItem(KEY));
       if (db && db.content) {
         if (!db.googleplay) db.googleplay = { configured: false };
+        ['tickets', 'reports', 'captchaTokens'].forEach((k) => { if (!Array.isArray(db[k])) db[k] = []; });
+        if (!db.settings) db.settings = {};
         return db;
       }
     } catch { /* datos dañados: se reinician */ }
-    return seed();
+    return fresh();
   }
   let db = load();
   function save() {
@@ -200,6 +214,66 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* Minijuego anti-robots (igual que api/captcha.php, dibujado en canvas) */
+  /* ------------------------------------------------------------------ */
+
+  const SPRITES = {
+    coin: { label: 'TODAS LAS MONEDAS', pal: { a: '#ffb547', b: '#7a4a00', c: '#fff6d8' }, px: ['....bbbb....', '..bbaaaabb..', '.baaaaaaaab.', '.baccaaaaab.', 'baacaaabaaab', 'baacaaabaaab', 'baaaaaabaaab', 'baaaaaabaaab', '.baaaaaaaab.', '.baaaaaaaab.', '..bbaaaabb..', '....bbbb....'] },
+    heart: { label: 'TODOS LOS CORAZONES', pal: { a: '#ff3355', b: '#5c0012', c: '#ffffff' }, px: ['............', '.bbb....bbb.', 'baaab..baaab', 'bacaabbaaaab', 'bacaaaaaaaab', 'baaaaaaaaaab', '.baaaaaaaab.', '..baaaaaab..', '...baaaab...', '....baab....', '.....bb.....', '............'] },
+    ghost: { label: 'TODOS LOS FANTASMAS', pal: { a: '#dff6ff', b: '#24425c', c: '#ffffff', d: '#1a3cff' }, px: ['....bbbb....', '..bbaaaabb..', '.baaaaaaaab.', '.baccaaccab.', '.bacdaacdab.', 'baaaaaaaaaab', 'baaaaaaaaaab', 'baaaaaaaaaab', 'baaaaaaaaaab', 'baaaaaaaaaab', 'baabaabbaabb', 'bb.bb..bb.b.'] },
+    cat: { label: 'TODOS LOS GATOS', pal: { a: '#a9a9a9', b: '#141414', c: '#ffffff', d: '#000000' }, px: ['b..........b', 'bb........bb', 'bab......bab', 'baabbbbbbaab', 'baaaaaaaaaab', 'bacccaacccab', 'bacdcaacdcab', 'baaaaaaaaaab', 'baaaabbaaaab', '.baaaaaaaab.', '..bbaaaabb..', '....bbbb....'] },
+    star: { label: 'TODAS LAS ESTRELLAS', pal: { a: '#fff07a', b: '#7a5c00' }, px: ['.....bb.....', '....baab....', '....baab....', '...baaaab...', 'bbbbaaaabbbb', 'baaaaaaaaaab', '.baaaaaaaab.', '..baaaaaab..', '..baaaaaab..', '.baaabbaaab.', '.baab..baab.', '.bb......bb.'] },
+    tape: { label: 'TODOS LOS CASSETTES', pal: { a: '#34343a', b: '#08080a', c: '#efe8d6', d: '#e8e8e8', e: '#ff3355' }, px: ['............', 'bbbbbbbbbbbb', 'baaaaaaaaaab', 'bacccccccccb', 'baeeeeeeeeab', 'baaaaaaaaaab', 'baddabbaddab', 'baddabbaddab', 'baaaaaaaaaab', 'bab.bbbb.bab', 'bbb......bbb', '............'] },
+  };
+  const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  function captchaImage(grid) {
+    const cell = 110;
+    const c = document.createElement('canvas');
+    c.width = cell * 3;
+    c.height = cell * 3;
+    const g = c.getContext('2d');
+    g.fillStyle = '#08080a';
+    g.fillRect(0, 0, c.width, c.height);
+    for (let i = 0; i < 700; i++) {
+      const v = rnd(14, 40);
+      g.fillStyle = `rgb(${v},${v},${v + 6})`;
+      g.fillRect(rnd(0, c.width), rnd(0, c.height), rnd(1, 3), rnd(1, 3));
+    }
+    grid.forEach((type, i) => {
+      const sp = SPRITES[type];
+      const scale = rnd(6, 8);
+      const ox = (i % 3) * cell + rnd(4, cell - 12 * scale - 4);
+      const oy = Math.floor(i / 3) * cell + rnd(4, cell - 12 * scale - 4);
+      const flip = Math.random() < 0.5;
+      sp.px.forEach((line, y) => {
+        for (let x = 0; x < 12; x++) {
+          const ch = line[flip ? 11 - x : x];
+          if (ch === '.') continue;
+          g.fillStyle = sp.pal[ch];
+          g.fillRect(ox + x * scale, oy + y * scale, scale, scale);
+        }
+      });
+    });
+    g.fillStyle = 'rgba(0,0,0,.35)';
+    for (let y = 0; y < c.height; y += 3) g.fillRect(0, y, c.width, 1);
+    g.fillStyle = '#ff3355';
+    [1, 2].forEach((k) => { g.fillRect(k * cell - 1, 0, 2, c.height); g.fillRect(0, k * cell - 1, c.width, 2); });
+    return c.toDataURL('image/png');
+  }
+  function needCaptcha(token) {
+    const now = Date.now();
+    db.captchaTokens = db.captchaTokens.filter((t) => t.exp > now);
+    const i = db.captchaTokens.findIndex((t) => t.token === token);
+    if (!token || i < 0) throw httpError(400, 'Completa el minijuego anti-robots para continuar');
+    db.captchaTokens.splice(i, 1);
+  }
+
+  const SUPPORT_CATEGORIES = { cuenta: 'Cuenta y acceso', juegos: 'Juegos y errores (bugs)', tienda: 'Tienda y pedidos', arrepentimiento: 'Arrepentimiento de compra', privacidad: 'Privacidad y mis datos', denuncia: 'Denunciar contenido o conducta', prensa: 'Prensa y colaboraciones', otro: 'Otro' };
+  const pubTicket = (t) => ({ code: t.code, subject: t.subject, category: t.category, categoryLabel: t.categoryLabel, status: t.status, createdAt: t.createdAt, updatedAt: t.updatedAt, messages: t.messages });
+  const findTicket = (b) => db.tickets.find((t) => t.code === String(b.code || '').trim().toUpperCase() && t.email === String(b.email || '').trim().toLowerCase());
+  const DEFAULT_SETTINGS = { tradeName: 'THE THING', email: 'contacto@thethinggame.com', supportEmail: 'soporte@thethinggame.com', minAge: '13' };
+
+  /* ------------------------------------------------------------------ */
   /* Rutas: mismas que la API de PHP                                     */
   /* ------------------------------------------------------------------ */
 
@@ -258,7 +332,7 @@
         const it = { id: id(), type: b.type, title: b.title, summary: b.summary || '', body: b.body || '', image: b.image || '', link: b.link || '',
           platform: b.platform || '', status: b.status || '', value: b.value || '', featured: !!b.featured, appKey: b.appKey || '',
           downloads: String(b.downloads || '').replace(/\D/g, ''), playPackage: b.playPackage || '', videoUrl: b.videoUrl || '',
-          price: String(b.price || '').replace(',', '.').replace(/[^\d.]/g, ''), currency: b.currency || 'USD', sizes: b.sizes || '', createdAt: t, updatedAt: t };
+          price: String(b.price || '').replace(',', '.').replace(/[^\d.]/g, ''), currency: b.currency || 'USD', sizes: b.sizes || '', game: b.type === 'news' ? (b.game || '') : '', createdAt: t, updatedAt: t };
         if (it.type === 'video' && !it.videoUrl) throw httpError(400, 'Falta el vídeo (enlace de YouTube/Vimeo)');
         db.content.push(it);
         let emailed = 0;
@@ -270,7 +344,7 @@
         const it = db.content.find((i) => i.id === q.get('id'));
         if (!it) throw httpError(404, 'No encontrado');
         if (!b.title) throw httpError(400, 'El título es obligatorio');
-        ['title', 'summary', 'body', 'image', 'link', 'platform', 'status', 'value', 'appKey', 'playPackage', 'videoUrl', 'sizes'].forEach((k) => { it[k] = b[k] || ''; });
+        ['title', 'summary', 'body', 'image', 'link', 'platform', 'status', 'value', 'appKey', 'playPackage', 'videoUrl', 'sizes', 'game'].forEach((k) => { it[k] = b[k] || ''; });
         it.price = String(b.price || '').replace(',', '.').replace(/[^\d.]/g, '');
         it.currency = b.currency || 'USD';
         it.downloads = String(b.downloads || '').replace(/\D/g, '');
@@ -303,12 +377,15 @@
         if (String(b.password || '').length < 8) throw httpError(400, 'La contraseña debe tener al menos 8 caracteres');
         if (db.members.some((m) => m.email === email)) throw httpError(409, 'Ya existe una cuenta con ese correo');
         if (db.members.some((m) => m.name.toLowerCase() === name.toLowerCase())) throw httpError(409, 'Ese nombre de jugador ya está ocupado');
-        const m = { id: id(), name, email, password: b.password, emailNotify: !!b.emailNotify, createdAt: now(), lastSeen: '' };
+        if (!b.accept) throw httpError(400, 'Debes aceptar los Términos y la Política de privacidad');
+        needCaptcha(b.captcha);
+        const m = { id: id(), name, email, password: b.password, emailNotify: !!b.emailNotify, createdAt: now(), lastSeen: '', consent: { terms: '2026-10', at: now() } };
         db.members.push(m);
         db.session.member = m.id;
         return { member: pubMember(m), unread: 1 };
       },
       login: (b) => {
+        needCaptcha(b.captcha);
         const m = db.members.find((x) => x.email === String(b.email || '').trim().toLowerCase() && x.password === b.password);
         if (!m) throw httpError(401, 'Correo o contraseña incorrectos');
         db.session.member = m.id;
@@ -322,6 +399,122 @@
       },
       notifications: () => memberNotifications(needMember()),
       seen: () => { needMember().lastSeen = now(); return { ok: true }; },
+      export: () => {
+        const m = needMember();
+        const title = (iid) => (db.content.find((i) => i.id === iid) || {}).title || iid;
+        return {
+          exportado: now(), web: location.href,
+          cuenta: { nombre: m.name, correo: m.email, creada: m.createdAt, avisosPorCorreo: !!m.emailNotify, consentimiento: m.consent || null },
+          'reseñasYComentarios': db.comments.filter((c) => c.member === m.id).map((c) => ({ sobre: title(c.item), estrellas: c.rating, texto: c.text, creado: c.createdAt })),
+          votos: Object.fromEntries(Object.entries(db.votes[m.id] || {}).map(([k, v]) => [k, title(v)])),
+          consultasDeSoporte: db.tickets.filter((t) => t.email === m.email).map((t) => ({ codigo: t.code, asunto: t.subject, estado: t.status, mensajes: t.messages })),
+        };
+      },
+      delete: (b) => {
+        const m = needMember();
+        if (b.password !== m.password) throw httpError(400, 'La contraseña no es correcta');
+        const mine = db.comments.filter((c) => c.member === m.id).map((c) => c.id);
+        db.members = db.members.filter((x) => x.id !== m.id);
+        db.comments = db.comments.filter((c) => c.member !== m.id);
+        db.reports = db.reports.filter((r) => r.member !== m.id && !mine.includes(r.comment));
+        delete db.votes[m.id];
+        db.session.member = null;
+        return { ok: true };
+      },
+    },
+
+    'captcha.php': {
+      new: () => {
+        const types = Object.keys(SPRITES);
+        const target = types[rnd(0, types.length - 1)];
+        const others = types.filter((t) => t !== target);
+        const cells = [...Array(9).keys()].sort(() => Math.random() - 0.5);
+        const answer = cells.slice(0, rnd(2, 4)).sort((a, b) => a - b);
+        const grid = [...Array(9).keys()].map((i) => (answer.includes(i) ? target : others[rnd(0, others.length - 1)]));
+        const cid = id();
+        db.captcha = { id: cid, answer, exp: Date.now() + 50000, at: Date.now() };
+        return { id: cid, prompt: `TOCA ${SPRITES[target].label}`, image: captchaImage(grid), cols: 3, rows: 3, seconds: 45 };
+      },
+      verify: (b) => {
+        const ch = db.captcha;
+        db.captcha = null;
+        if (!ch || ch.id !== b.id) throw httpError(400, 'La partida terminó. Juega otra.');
+        if (ch.exp < Date.now()) throw httpError(400, '¡Se acabó el tiempo! Juega otra.');
+        const cells = [...new Set((b.cells || []).map(Number))].sort((x, y) => x - y);
+        if (Date.now() - ch.at < 1000 || cells.join() !== ch.answer.join()) throw httpError(400, 'Fallaste. ¡Inténtalo otra vez!');
+        const token = id() + id();
+        db.captchaTokens.push({ token, exp: Date.now() + 600000 });
+        return { token };
+      },
+    },
+
+    'settings.php': {
+      '': () => ({ ...DEFAULT_SETTINGS, ...Object.fromEntries(Object.entries(db.settings).filter(([, v]) => v !== '')) }),
+      save: (b) => {
+        needAdmin();
+        const keys = ['legalName', 'tradeName', 'taxId', 'address', 'country', 'jurisdiction', 'registry', 'email', 'supportEmail', 'privacyEmail', 'minAge', 'youtube', 'tiktok', 'instagram', 'x', 'discord', 'facebook', 'twitch'];
+        db.settings = Object.fromEntries(keys.map((k) => [k, String(b[k] || '').trim()]));
+        db.settings.updatedAt = now();
+        return { ...DEFAULT_SETTINGS, ...db.settings };
+      },
+    },
+
+    'support.php': {
+      create: (b) => {
+        if (b.website) throw httpError(400, 'Envío no permitido');
+        const email = String(b.email || '').trim().toLowerCase();
+        if (String(b.name || '').trim().length < 2) throw httpError(400, 'Escribe tu nombre');
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw httpError(400, 'El correo no es válido');
+        if (!SUPPORT_CATEGORIES[b.category]) throw httpError(400, 'Elige el tipo de consulta');
+        if (String(b.subject || '').trim().length < 3) throw httpError(400, 'Escribe un asunto');
+        if (String(b.message || '').trim().length < 10) throw httpError(400, 'Cuéntanos un poco más (mínimo 10 caracteres)');
+        if (!b.accept) throw httpError(400, 'Debes aceptar la política de privacidad');
+        needCaptcha(b.captcha);
+        const hex = () => id().slice(0, 4).toUpperCase();
+        const game = db.content.find((i) => i.id === b.game && i.type === 'app');
+        let text = String(b.message).trim();
+        if (b.order) text = `Pedido / referencia: ${b.order}\n\n${text}`;
+        if (game) text = `Juego: ${game.title}\n${text}`;
+        const t = now();
+        const ticket = { id: id(), code: `TT-${hex()}-${hex()}`, name: String(b.name).trim(), email, category: b.category, categoryLabel: SUPPORT_CATEGORIES[b.category],
+          subject: String(b.subject).trim(), status: 'open', createdAt: t, updatedAt: t, messages: [{ from: 'user', text, at: t }] };
+        db.tickets.unshift(ticket);
+        return { code: ticket.code, mailed: false, demo: true };
+      },
+      lookup: (b) => {
+        const tk = findTicket(b);
+        if (!tk) throw httpError(404, 'No encontramos una consulta con ese código y correo');
+        return pubTicket(tk);
+      },
+      reply: (b) => {
+        const tk = findTicket(b);
+        if (!tk) throw httpError(404, 'No encontramos una consulta con ese código y correo');
+        if (String(b.message || '').trim().length < 2) throw httpError(400, 'Escribe tu mensaje');
+        tk.messages.push({ from: 'user', text: String(b.message).trim(), at: now() });
+        tk.status = 'open';
+        tk.updatedAt = now();
+        return pubTicket(tk);
+      },
+      list: () => { needAdmin(); return { tickets: db.tickets, categories: SUPPORT_CATEGORIES }; },
+      answer: (b) => {
+        needAdmin();
+        const tk = db.tickets.find((t) => t.id === b.id);
+        if (!tk) throw httpError(404, 'No encontrado');
+        if (String(b.message || '').trim().length < 2) throw httpError(400, 'Escribe la respuesta');
+        tk.messages.push({ from: 'staff', text: String(b.message).trim(), at: now() });
+        tk.status = b.close ? 'closed' : 'answered';
+        tk.updatedAt = now();
+        return { ticket: tk, mailed: false };
+      },
+      status: (b) => {
+        needAdmin();
+        const tk = db.tickets.find((t) => t.id === b.id);
+        if (!tk) throw httpError(404, 'No encontrado');
+        tk.status = b.status;
+        tk.updatedAt = now();
+        return { ticket: tk };
+      },
+      delete: (b) => { needAdmin(); db.tickets = db.tickets.filter((t) => t.id !== b.id); return { ok: true }; },
     },
 
     'community.php': {
@@ -361,6 +554,15 @@
         if (!c) throw httpError(404, 'No encontrado');
         if (!db.session.admin && (!m || c.member !== m.id)) throw httpError(403, 'No puedes borrar este comentario');
         db.comments = db.comments.filter((x) => x !== c);
+        db.reports = db.reports.filter((r) => r.comment !== c.id);
+        return { ok: true };
+      },
+      report: (b) => {
+        const m = needMember();
+        const reasons = { spam: 'Spam o publicidad', ofensivo: 'Insultos u odio', acoso: 'Acoso', spoiler: 'Spoiler', ilegal: 'Contenido ilegal', otro: 'Otro motivo' };
+        if (!reasons[b.reason]) throw httpError(400, 'Elige un motivo');
+        if (!db.comments.some((c) => c.id === b.id)) throw httpError(404, 'Ese comentario ya no existe');
+        if (!db.reports.some((r) => r.comment === b.id && r.member === m.id)) db.reports.push({ id: id(), comment: b.id, member: m.id, reason: reasons[b.reason], createdAt: now() });
         return { ok: true };
       },
       vote: (b) => {
@@ -467,10 +669,12 @@
         return db.comments.slice().sort((a, b2) => b2.createdAt.localeCompare(a.createdAt)).map((c) => {
           const it = db.content.find((i) => i.id === c.item);
           const m = db.members.find((x) => x.id === c.member);
-          return { id: c.id, item: c.item, itemTitle: it ? it.title : '—', itemType: it ? it.type : '', name: m ? m.name : 'JUGADOR BORRADO', rating: c.rating, text: c.text, createdAt: c.createdAt };
+          return { id: c.id, item: c.item, itemTitle: it ? it.title : '—', itemType: it ? it.type : '', name: m ? m.name : 'JUGADOR BORRADO', rating: c.rating, text: c.text, createdAt: c.createdAt,
+            reports: db.reports.filter((r) => r.comment === c.id).map((r) => r.reason) };
         });
       },
       notifications: () => { needAdmin(); return db.notifications.slice(0, 50); },
+      dismiss_reports: (b) => { needAdmin(); db.reports = db.reports.filter((r) => r.comment !== b.id); return { ok: true }; },
       notify: (b) => {
         needAdmin();
         if (!String(b.title || '').trim()) throw httpError(400, 'Escribe un título para el aviso');
