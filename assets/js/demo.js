@@ -97,8 +97,32 @@
     e.status = status;
     return e;
   }
-  const member = () => db.members.find((m) => m.id === db.session.member) || null;
-  const pubMember = (m) => ({ id: m.id, name: m.name, email: m.email, emailNotify: !!m.emailNotify, createdAt: m.createdAt });
+  /* El administrador también es jugador en la web (cuenta del staff) */
+  function staffMember() {
+    let m = db.members.find((x) => x.staff);
+    if (!m) {
+      m = { id: id(), name: 'THE THING', email: db.admin.email, password: '', emailNotify: false, createdAt: now(), lastSeen: '', staff: true };
+      db.members.push(m);
+    }
+    return m;
+  }
+  const member = () => {
+    if (!db.session.member && db.session.admin) { db.session.member = staffMember().id; db.session.staff = true; }
+    return db.members.find((m) => m.id === db.session.member) || null;
+  };
+  const pubMember = (m) => ({ id: m.id, name: m.name, email: m.email, emailNotify: !!m.emailNotify, createdAt: m.createdAt, staff: !!m.staff });
+  const RESERVED = ['thething', 'admin', 'administrador', 'administrator', 'staff', 'soporte', 'support', 'moderador', 'mod', 'oficial'];
+  const reserved = (name) => RESERVED.includes(name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const SOCIAL_PATTERNS = { youtube: 'https://www.youtube.com/@%s', tiktok: 'https://www.tiktok.com/@%s', instagram: 'https://www.instagram.com/%s', x: 'https://x.com/%s',
+    discord: 'https://discord.gg/%s', facebook: 'https://www.facebook.com/%s', twitch: 'https://www.twitch.tv/%s', googleplay: 'https://play.google.com/store/apps/developer?id=%s',
+    steam: 'https://store.steampowered.com/developer/%s', itchio: 'https://%s.itch.io' };
+  function socialUrl(k, v) {
+    v = String(v || '').trim();
+    if (!v) return '';
+    if (/^https?:\/\//i.test(v) || (v.includes('/') && v[0] !== '@')) return /^https?:\/\//i.test(v) ? v.replace(/^http:/i, 'https:') : `https://${v}`;
+    const h = v.replace(/^@/, '').replace(/[^\w.-]/g, '');
+    return h ? SOCIAL_PATTERNS[k].replace('%s', encodeURIComponent(h)) : '';
+  }
   const pubItem = (i) => {
     if (db.session.admin) return { ...i };
     const { appKey, downloads, playPackage, ...rest } = i;
@@ -174,7 +198,7 @@
     db.pin = { pin, expires: Date.now() + 10 * 60000, tries: 0 };
     db.pendingPin = true;
     db.session.admin = false;
-    return { step: 'pin', sentTo: 'ad•••@thethinggame.com', mailSent: true, minutes: 10, demoMail: pinMail(pin) };
+    return { step: 'pin', sentTo: 'ad•••@thethinggame.com', mailSent: true, minutes: 10, demoMail: pinMail(pin), demoPin: pin };
   }
 
   /* Datos de EJEMPLO de LevelPlay (la demo no puede leer los reales) */
@@ -303,9 +327,16 @@
         db.pin = null;
         db.pendingPin = false;
         db.session.admin = true;
+        db.session.member = staffMember().id;
+        db.session.staff = true;
         return { user: db.admin.email };
       },
-      logout: () => { db.session.admin = false; db.pendingPin = false; return { ok: true }; },
+      logout: () => {
+        db.session.admin = false;
+        db.pendingPin = false;
+        if (db.session.staff) { db.session.member = null; db.session.staff = false; }
+        return { ok: true };
+      },
       password: (b) => {
         needAdmin();
         if (b.current !== db.admin.password) throw httpError(400, 'La contraseña actual no es correcta');
@@ -376,6 +407,8 @@
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw httpError(400, 'El correo no es válido');
         if (String(b.password || '').length < 8) throw httpError(400, 'La contraseña debe tener al menos 8 caracteres');
         if (db.members.some((m) => m.email === email)) throw httpError(409, 'Ya existe una cuenta con ese correo');
+        if (email === db.admin.email) throw httpError(400, 'Ese correo está reservado');
+        if (reserved(name)) throw httpError(400, 'Ese nombre de jugador está reservado');
         if (db.members.some((m) => m.name.toLowerCase() === name.toLowerCase())) throw httpError(409, 'Ese nombre de jugador ya está ocupado');
         if (!b.accept) throw httpError(400, 'Debes aceptar los Términos y la Política de privacidad');
         needCaptcha(b.captcha);
@@ -386,12 +419,17 @@
       },
       login: (b) => {
         needCaptcha(b.captcha);
-        const m = db.members.find((x) => x.email === String(b.email || '').trim().toLowerCase() && x.password === b.password);
+        if (String(b.email || '').trim().toLowerCase() === db.admin.email) return { staffLogin: true };
+        const m = db.members.find((x) => !x.staff && x.email === String(b.email || '').trim().toLowerCase() && x.password === b.password);
         if (!m) throw httpError(401, 'Correo o contraseña incorrectos');
         db.session.member = m.id;
         return { member: pubMember(m), unread: memberNotifications(m).unread };
       },
-      logout: () => { db.session.member = null; return { ok: true }; },
+      logout: () => {
+        if (db.session.staff) { db.session.admin = false; db.session.staff = false; }
+        db.session.member = null;
+        return { ok: true };
+      },
       prefs: (b) => {
         const m = needMember();
         if ('emailNotify' in b) m.emailNotify = !!b.emailNotify;
@@ -412,6 +450,7 @@
       },
       delete: (b) => {
         const m = needMember();
+        if (m.staff) throw httpError(400, 'La cuenta del staff no se puede borrar');
         if (b.password !== m.password) throw httpError(400, 'La contraseña no es correcta');
         const mine = db.comments.filter((c) => c.member === m.id).map((c) => c.id);
         db.members = db.members.filter((x) => x.id !== m.id);
@@ -452,8 +491,15 @@
       '': () => ({ ...DEFAULT_SETTINGS, ...Object.fromEntries(Object.entries(db.settings).filter(([, v]) => v !== '')) }),
       save: (b) => {
         needAdmin();
-        const keys = ['legalName', 'tradeName', 'taxId', 'address', 'country', 'jurisdiction', 'registry', 'email', 'supportEmail', 'privacyEmail', 'minAge', 'youtube', 'tiktok', 'instagram', 'x', 'discord', 'facebook', 'twitch'];
-        db.settings = Object.fromEntries(keys.map((k) => [k, String(b[k] || '').trim()]));
+        const keys = ['legalName', 'tradeName', 'taxId', 'address', 'country', 'jurisdiction', 'registry', 'email', 'supportEmail', 'privacyEmail', 'minAge', ...Object.keys(SOCIAL_PATTERNS)];
+        keys.filter((k) => k in b).forEach((k) => {
+          let v = String(b[k] || '').trim();
+          if (SOCIAL_PATTERNS[k] && v) {
+            v = socialUrl(k, v);
+            if (!v) throw httpError(400, `No entendimos el enlace de ${k}. Pega la dirección completa (https://…) o tu @usuario.`);
+          }
+          db.settings[k] = v;
+        });
         db.settings.updatedAt = now();
         return { ...DEFAULT_SETTINGS, ...db.settings };
       },
@@ -526,7 +572,7 @@
           .map((c) => {
             const author = db.members.find((x) => x.id === c.member);
             const mine = !!m && c.member === m.id;
-            return { id: c.id, name: author ? author.name : 'JUGADOR BORRADO', rating: c.rating, text: c.text, createdAt: c.createdAt, updatedAt: c.updatedAt, mine, canDelete: mine || db.session.admin };
+            return { id: c.id, name: author ? author.name : 'JUGADOR BORRADO', staff: !!(author && author.staff), rating: c.rating, text: c.text, createdAt: c.createdAt, updatedAt: c.updatedAt, mine, canDelete: mine || db.session.admin };
           });
       },
       comment: (b) => {

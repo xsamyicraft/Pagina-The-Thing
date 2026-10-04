@@ -291,6 +291,7 @@
         </div>
       </button>`).join('');
     wrap.querySelectorAll('.cart').forEach(addTilt);
+    site.fixAccents(wrap);
   }
 
   /* Destacado de la portada */
@@ -318,14 +319,6 @@
           </div>
         </div>
       </div>`;
-  }
-
-  /* Accesos a cada página en la portada */
-  function renderExplore() {
-    document.querySelectorAll('[data-count-type]').forEach((el) => {
-      const n = byType(el.dataset.countType).length;
-      el.textContent = n ? `${n} ${n === 1 ? el.dataset.one : el.dataset.many}` : el.dataset.none || '';
-    });
   }
 
   /* ------------------------------------------------------------------ */
@@ -383,6 +376,7 @@
     wrap.innerHTML = list.slice(0, limit).map((n, i) => newsCard(n, i, wideFirst && i === 0)).join('');
     if (more) more.hidden = isHome || list.length <= newsShown;
     observeReveals(wrap);
+    site.fixAccents(wrap);
   }
 
   /* ------------------------------------------------------------------ */
@@ -729,9 +723,274 @@
     });
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Portada: canales destacados (carrusel con imágenes)                 */
+  /* ------------------------------------------------------------------ */
+
+  const SLIDE_MS = 8000;
+  const pad2c = (n) => String(n).padStart(2, '0');
+  const isSoldOut = (p) => /agotad|sold/i.test(p.status || '');
+  const isSoon = (p) => /pr[oó]ximamente|soon/i.test(p.status || '');
+  const MONEY = { USD: 'en-US', MXN: 'es-MX', EUR: 'es-ES', ARS: 'es-AR', COP: 'es-CO', CLP: 'es-CL', PEN: 'es-PE' };
+  function priceText(p) {
+    if (p.price === '' || p.price == null) return 'CONSULTAR';
+    const cur = MONEY[p.currency] ? p.currency : 'USD';
+    try { return new Intl.NumberFormat(MONEY[cur], { style: 'currency', currency: cur }).format(Number(p.price)); } catch { return `$${p.price}`; }
+  }
+  /** Portada de un vídeo: la subida en el panel o la miniatura de YouTube (solo con permiso de cookies). */
+  function videoCover(v) {
+    if (v.image) return v.image;
+    const yt = ytId(v.videoUrl || '');
+    return yt && site.consent.media() ? `https://i.ytimg.com/vi/${yt}/hqdefault.jpg` : '';
+  }
+
+  const heroState = { i: 0, slides: [], paused: false, visible: true };
+
+  /** Canales a partir del contenido: juego destacado, otro juego, noticia, vídeo y tienda. */
+  function heroChannels() {
+    const ch = [];
+    const games = byType('app').sort((a, b) => Number(b.featured) - Number(a.featured));
+    const feat = games[0];
+    const tagsOf = (g) => [g.status ? `<span class="tag ${statusClass(g.status)}">${esc(g.status)}</span>` : '', g.platform ? `<span class="tag">${esc(g.platform)}</span>` : ''].join('');
+    if (feat) {
+      ch.push({ kind: 'JUEGO DESTACADO', icon: '▶', title: feat.title, text: feat.summary, img: feat.image, meta: tagsOf(feat) + ratingLine(feat), href: site.itemUrl(feat), open: feat.id,
+        cta: `<a class="btn btn--solid btn--glow" href="${site.itemUrl(feat)}" data-open="${esc(feat.id)}">▶ Ver juego</a>${feat.link ? `<a class="btn" href="${esc(feat.link)}" target="_blank" rel="noopener noreferrer">Descargar ↗</a>` : ''}`, osd: '▶ PLAY' });
+    }
+    const second = games.find((g) => g !== feat && g.image);
+    if (second) {
+      ch.push({ kind: 'OTRO CARTUCHO', icon: '▶', title: second.title, text: second.summary, img: second.image, meta: tagsOf(second) + ratingLine(second), href: site.itemUrl(second), open: second.id,
+        cta: `<a class="btn btn--solid btn--glow" href="${site.itemUrl(second)}" data-open="${esc(second.id)}">▶ Ver juego</a>`, osd: '▶ PLAY' });
+    }
+    const news = byType('news')[0];
+    if (news) {
+      const g = gameOf(news);
+      ch.push({ kind: 'ÚLTIMA NOTICIA', icon: '✉', title: news.title, text: news.summary, img: news.image, href: site.itemUrl(news), open: news.id,
+        meta: `<span class="tag">${esc(formatDate(news.createdAt))}</span>${g ? `<span class="tag tag--live">${esc(g.title)}</span>` : ''}`,
+        cta: `<a class="btn btn--solid btn--glow" href="${site.itemUrl(news)}" data-open="${esc(news.id)}">Leer más ▶</a>`, osd: '● NEWS' });
+    }
+    const video = byType('video')[0];
+    if (video) {
+      ch.push({ kind: 'EN EL VIDEOCLUB', icon: '▷', title: video.title, text: video.summary || 'Mételo en la tele y dale play.', img: videoCover(video), href: site.itemUrl(video), vhs: true,
+        meta: `<span class="tag">${byType('video').length} cassette${byType('video').length === 1 ? '' : 's'} en el estante</span>`,
+        cta: `<a class="btn btn--solid btn--glow" href="${site.itemUrl(video)}" data-transition>▶ Ver vídeo</a><a class="btn" href="videos.html" data-transition>Videoclub</a>`, osd: '▶ PLAY  SP' });
+    }
+    const products = byType('product');
+    const prod = products.find((p) => !isSoldOut(p) && !isSoon(p) && p.image) || products.find((p) => p.image) || products[0];
+    if (prod) {
+      ch.push({ kind: 'NUEVO EN LA TIENDA', icon: '$', title: prod.title, text: prod.summary, img: prod.image, href: site.itemUrl(prod), price: priceText(prod),
+        meta: prod.status ? `<span class="tag ${isSoldOut(prod) ? '' : isSoon(prod) ? 'tag--status' : 'tag--live'}">${esc(prod.status)}</span>` : '',
+        cta: `<a class="btn btn--solid btn--glow" href="${site.itemUrl(prod)}" data-transition>Ver producto ▶</a><a class="btn" href="tienda.html" data-transition>Tienda</a>`, osd: '$ SHOP' });
+    }
+    return ch;
+  }
+
+  function slideHtml(c, i, n) {
+    const art = c.img
+      ? `<img src="${esc(c.img)}" alt="" loading="${i < 2 ? 'eager' : 'lazy'}">`
+      : `<span class="hslide__empty" aria-hidden="true"><img src="assets/img/logo-small.webp" alt=""><b>${c.vhs ? 'VHS' : 'THE THING'}</b></span>`;
+    return `
+      <article class="hslide${c.vhs ? ' hslide--vhs' : ''}" data-slide="${i}" role="group" aria-roledescription="diapositiva" aria-label="${i + 1} de ${n}: ${esc(c.title)}" aria-hidden="true" inert>
+        <div class="hslide__text">
+          <p class="hslide__kind"><span class="hslide__ch">CH ${pad2c(i + 1)}</span>${esc(c.kind)}</p>
+          <h2 class="hslide__title">${esc(c.title)}</h2>
+          ${c.meta ? `<div class="hslide__meta">${c.meta}</div>` : ''}
+          ${c.text ? `<p class="hslide__lead">${esc(c.text)}</p>` : ''}
+          <div class="hero__cta">${c.cta}</div>
+        </div>
+        <a class="hslide__art" href="${c.href}"${c.open ? ` data-open="${esc(c.open)}"` : ' data-transition'} aria-label="Abrir ${esc(c.title)}">
+          <span class="hslide__screen">${art}<span class="hslide__osd">${esc(c.osd || '▶ PLAY')}</span><span class="hslide__hint">PULSA PARA ABRIR ▶</span></span>
+          ${c.price ? `<span class="price-tag hslide__price">${esc(c.price)}</span>` : ''}
+        </a>
+      </article>`;
+  }
+
+  function renderHero() {
+    const wrap = $('#heroSlides');
+    if (!wrap) return;
+    const channels = heroChannels();
+    wrap.querySelectorAll('.hslide:not(.hslide--intro)').forEach((el) => el.remove());
+    const n = channels.length + 1;
+    wrap.insertAdjacentHTML('beforeend', channels.map((c, k) => slideHtml(c, k + 1, n)).join(''));
+    const intro = wrap.querySelector('.hslide--intro');
+    intro.setAttribute('aria-label', `1 de ${n}: Bienvenido a THE THING`);
+    heroState.slides = [{ title: 'THE THING', kind: 'BIENVENIDO', img: '', thumb: 'assets/img/logo-small.webp' }, ...channels];
+    const rail = $('#heroRail');
+    rail.innerHTML = heroState.slides.map((c, i) => `
+      <button type="button" class="hrail" role="tab" data-go="${i}" aria-selected="${i === heroState.i}" aria-label="Canal ${i + 1}: ${esc(c.title)}">
+        <span class="hrail__thumb">${(c.thumb || c.img) ? `<img src="${esc(c.thumb || c.img)}" alt="" loading="lazy">` : `<i aria-hidden="true">${c.icon || '▶'}</i>`}</span>
+        <span class="hrail__txt"><small>CH ${pad2c(i + 1)} · ${esc(c.kind)}</small><b>${esc(c.title)}</b></span>
+        <span class="hrail__bar"><i></i></span>
+      </button>`).join('');
+    rail.hidden = n < 2;
+    site.fixAccents(wrap);
+    setHero(Math.min(heroState.i, n - 1), false, true);
+  }
+
+  function setHero(next, user = false, force = false) {
+    const wrap = $('#heroSlides');
+    const slides = [...wrap.querySelectorAll('.hslide')];
+    if (!slides.length) return;
+    next = (next + slides.length) % slides.length;
+    const changed = next !== heroState.i;
+    if (!changed && !force) return;
+    slides.forEach((s, i) => {
+      const on = i === next;
+      s.classList.toggle('is-active', on);
+      s.setAttribute('aria-hidden', String(!on));
+      if (on) s.removeAttribute('inert'); else s.setAttribute('inert', '');
+    });
+    heroState.i = next;
+    $('#heroCh').textContent = `CH-${pad2c(next + 1)}`;
+    // Fondo ambiental con la imagen del canal
+    const bg = $('#heroBg');
+    const img = (heroState.slides[next] || {}).img;
+    const layer = document.createElement('i');
+    if (img) layer.style.backgroundImage = `url("${img.replace(/"/g, '%22')}")`;
+    bg.appendChild(layer);
+    requestAnimationFrame(() => layer.classList.add('on'));
+    [...bg.children].slice(0, -1).forEach((old) => { old.classList.remove('on'); setTimeout(() => old.remove(), 900); });
+    // Interferencia al cambiar de canal
+    if (changed && !reduceMotion) {
+      const st = $('#heroStatic');
+      st.classList.remove('zap');
+      void st.offsetWidth;
+      st.classList.add('zap');
+    }
+    if (user) beep('blip');
+    // Barra de progreso del canal activo
+    document.querySelectorAll('.hrail').forEach((b) => {
+      const on = Number(b.dataset.go) === next;
+      b.setAttribute('aria-selected', String(on));
+      b.classList.remove('run');
+      if (on) {
+        void b.offsetWidth;
+        if (!reduceMotion) b.classList.add('run');
+        const rail = b.parentElement;
+        if (rail.scrollWidth > rail.clientWidth && heroState.visible) rail.scrollTo({ left: Math.max(0, b.offsetLeft - 16), behavior: reduceMotion ? 'auto' : 'smooth' });
+      }
+    });
+  }
+
+  function initHeroCarousel() {
+    const hero = $('#inicio');
+    if (!hero || !$('#heroSlides')) return;
+    hero.style.setProperty('--slide-ms', `${SLIDE_MS}ms`);
+    const pause = (on) => { heroState.paused = on; hero.classList.toggle('is-paused', on || !heroState.visible || document.hidden); };
+    const rail = $('#heroRail');
+    rail.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-go]');
+      if (b) setHero(Number(b.dataset.go), true);
+    });
+    rail.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+      setHero(heroState.i + (e.key === 'ArrowRight' ? 1 : -1), true);
+      const b = rail.querySelector('[aria-selected="true"]');
+      if (b) b.focus();
+    });
+    // Al terminar la barra del canal activo, pasa al siguiente
+    rail.addEventListener('animationend', (e) => {
+      if (e.target.closest('.hrail[aria-selected="true"]')) setHero(heroState.i + 1);
+    });
+    // Se pausa al pasar por encima de la imagen del canal o del raíl (no de toda la portada)
+    if (window.matchMedia('(hover: hover)').matches) {
+      hero.addEventListener('pointerover', (e) => { if (e.target.closest('.hslide.is-active .hslide__art, .hero__rail')) pause(true); });
+      hero.addEventListener('pointerout', (e) => {
+        if (e.target.closest('.hslide__art, .hero__rail') && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.hslide.is-active .hslide__art, .hero__rail'))) pause(false);
+      });
+    }
+    hero.addEventListener('focusin', () => pause(true));
+    hero.addEventListener('focusout', () => pause(false));
+    document.addEventListener('visibilitychange', () => pause(heroState.paused));
+    new IntersectionObserver(([en]) => { heroState.visible = en.isIntersecting; pause(heroState.paused); }, { threshold: 0.35 }).observe(hero);
+    // Deslizar con el dedo
+    let sx = null;
+    let sy = 0;
+    hero.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') { sx = e.clientX; sy = e.clientY; } });
+    hero.addEventListener('pointerup', (e) => {
+      if (sx === null) return;
+      const dx = e.clientX - sx;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(e.clientY - sy) * 1.5) setHero(heroState.i + (dx < 0 ? 1 : -1), true);
+      sx = null;
+    });
+    site.consent.onChange(() => renderHero());        // con permiso aparecen las miniaturas de YouTube
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Portada: vitrinas con imagen de cada sección                        */
+  /* ------------------------------------------------------------------ */
+
+  const hideSection = (el, hide) => { const sec = el.closest('section'); if (sec) sec.hidden = hide; };
+
+  function renderHomeGames() {
+    const wrap = $('#homeGames');
+    if (!wrap) return;
+    const games = byType('app').sort((a, b) => Number(b.featured) - Number(a.featured)).slice(1, 5);
+    wrap.hidden = !games.length;
+    wrap.innerHTML = games.map((g, i) => `
+      <a class="gcard reveal" style="--d:${i * 0.08}s" href="${site.itemUrl(g)}" data-open="${esc(g.id)}">
+        <span class="gcard__media">${media(g)}<span class="gcard__play" aria-hidden="true">▶ VER</span></span>
+        <span class="gcard__body">
+          ${g.status ? `<span class="tag ${statusClass(g.status)}">${esc(g.status)}</span>` : ''}
+          <b class="gcard__title">${esc(g.title)}</b>
+          ${ratingLine(g)}
+        </span>
+      </a>`).join('');
+    wrap.querySelectorAll('.gcard').forEach(addTilt);
+  }
+
+  function renderHomeVideos() {
+    const wrap = $('#homeVideos');
+    if (!wrap) return;
+    const vids = byType('video').slice(0, 4);
+    hideSection(wrap, !vids.length);
+    wrap.innerHTML = vids.map((v, i) => {
+      const cover = videoCover(v);
+      return `
+        <a class="vhsbox reveal" style="--d:${i * 0.08}s; --lc:${labelColor(i)}; --tilt:${[-4, 3, -2, 5][i]}deg" href="${site.itemUrl(v)}" data-transition>
+          <span class="vhsbox__cover">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy">` : '<span class="vhsbox__noise" aria-hidden="true"></span>'}
+            <span class="vhsbox__play" aria-hidden="true">▶</span></span>
+          <span class="vhsbox__label">${esc(v.title)}</span>
+          <span class="vhsbox__brand" aria-hidden="true"><b>VHS</b> THE THING</span>
+        </a>`;
+    }).join('');
+  }
+
+  function renderHomeShop() {
+    const wrap = $('#homeShop');
+    if (!wrap) return;
+    const list = byType('product').sort((a, b) => Number(isSoldOut(a)) - Number(isSoldOut(b))).slice(0, 4);
+    hideSection(wrap, !list.length);
+    wrap.innerHTML = list.map((p, i) => `
+      <a class="product reveal${isSoldOut(p) ? ' soldout' : ''}" style="--d:${i * 0.08}s" href="${site.itemUrl(p)}" data-transition>
+        <span class="product__media">${media(p)}<span class="price-tag">${esc(priceText(p))}</span></span>
+        <span class="product__body">
+          ${p.status ? `<span><span class="tag ${isSoldOut(p) ? '' : isSoon(p) ? 'tag--status' : 'tag--live'}">${esc(p.status)}</span></span>` : ''}
+          <b class="product__title">${esc(p.title)}</b>
+          <span class="product__cta">${isSoldOut(p) ? 'Agotado' : 'Lo quiero ▶'}</span>
+        </span>
+      </a>`).join('');
+  }
+
+  function renderHomeGallery() {
+    const wrap = $('#homeGallery');
+    if (!wrap) return;
+    const imgs = byType('image');
+    hideSection(wrap, !imgs.length);
+    wrap.innerHTML = imgs.slice(0, 6).map((g, i) => `
+      <button type="button" class="shot reveal" style="--r:${((i * 37) % 9) - 4}deg; --d:${i * 0.06}s" data-shot="${i}">
+        <img src="${esc(g.image)}" alt="${esc(g.title)}" loading="lazy">
+        <figcaption>${esc(g.title)}</figcaption>
+      </button>`).join('');
+  }
+
   function renderAll() {
+    renderHero();
     renderFeatured();
-    renderExplore();
+    renderHomeGames();
+    renderHomeVideos();
+    renderHomeShop();
+    renderHomeGallery();
     renderGames();
     renderTapes();
     renderVotes();
@@ -740,6 +999,7 @@
     renderGallery();
     renderTicker();
     observeReveals();
+    site.fixAccents(document.querySelector('main'));
   }
 
   /* ------------------------------------------------------------------ */
@@ -857,12 +1117,12 @@
     }
 
     const cards = list.map((c, i) => `
-      <article class="code-card${c.mine ? ' mine' : ''}" style="--d:${Math.min(i, 8) * 0.06}s">
+      <article class="code-card${c.mine ? ' mine' : ''}${c.staff ? ' code-card--staff' : ''}" style="--d:${Math.min(i, 8) * 0.06}s">
         <div class="code-card__top">
           <span class="code-card__code">CÓDIGO ${reviewCode(c.id)}</span>
           ${isApp ? `${starsHtml(c.rating)}<span class="sr-only">${c.rating} de 5 estrellas</span>` : ''}
         </div>
-        <p class="code-card__who">&gt; PLAYER: <span class="player" style="--pc:${playerColor(c.name)}">${esc(c.name.toUpperCase())}</span> · ${formatDate(c.createdAt, 'vhs')}${c.updatedAt !== c.createdAt ? ' · EDITADO' : ''}</p>
+        <p class="code-card__who">&gt; PLAYER: <span class="player${c.staff ? ' player--staff' : ''}" style="--pc:${c.staff ? 'var(--acc)' : playerColor(c.name)}">${esc(c.name.toUpperCase())}</span>${c.staff ? ' <span class="staff-tag">★ STAFF</span>' : ''} · ${formatDate(c.createdAt, 'vhs')}${c.updatedAt !== c.createdAt ? ' · EDITADO' : ''}</p>
         <p class="code-card__text">${esc(c.text)}</p>
         <div class="code-card__actions">
           ${c.canDelete ? `<button class="code-card__del" type="button" data-del-comment="${esc(c.id)}">[ BORRAR ]</button>` : ''}
@@ -1039,6 +1299,7 @@
   /* ------------------------------------------------------------------ */
 
   initHero();
+  initHeroCarousel();
   initCat();
   initCountdown();
   initVideoClub();

@@ -31,7 +31,7 @@
     video: {
       label: 'Vídeos', one: 'vídeo', nuevo: 'Nuevo vídeo', icon: '▷',
       desc: 'Cada vídeo es un cassette VHS que los visitantes meten en la tele vieja de la portada.',
-      fields: ['title', 'videoUrl', 'summary', 'notify'],
+      fields: ['title', 'videoUrl', 'image', 'summary', 'notify'],
     },
     product: {
       label: 'Tienda', one: 'producto', nuevo: 'Nuevo producto', icon: '$',
@@ -267,7 +267,7 @@
     $('#userEmail').textContent = user;
     await loadContent();
     const fromHash = location.hash.slice(1);
-    setTab(TYPES[fromHash] || ['account', 'stats', 'community', 'support', 'settings'].includes(fromHash) ? fromHash : 'overview');
+    setTab(TYPES[fromHash] || ['account', 'stats', 'community', 'support', 'settings', 'social'].includes(fromHash) ? fromHash : 'overview');
     refreshBadges();
   }
 
@@ -312,6 +312,7 @@
     else if (tab === 'community') return renderCommunity(panel);
     else if (tab === 'support') return renderSupport(panel);
     else if (tab === 'settings') return renderSettings(panel);
+    else if (tab === 'social') return renderSocial(panel);
     else if (tab === 'account') panel.innerHTML = renderAccount();
     else panel.innerHTML = renderList(tab);
     if (tab === 'account') bindAccount();
@@ -465,7 +466,7 @@
       case 'featured':
         return `<label class="check"><input type="checkbox" name="featured"${item.featured ? ' checked' : ''}> Destacar en portada</label>`;
       case 'image':
-        return `<div class="field"><span>Imagen${type === 'image' ? ' *' : ''}</span>
+        return `<div class="field"><span>${type === 'video' ? 'Portada del cassette (opcional · si no, se usa la miniatura de YouTube)' : `Imagen${type === 'image' ? ' *' : ''}`}</span>
           <div class="dropzone" id="dropzone">${dropzoneInner(item.image)}</div>
           <input name="image" type="hidden" value="${v('image')}">
           <label class="field"><small>…o pega la URL de una imagen</small><input name="imageUrl" type="url" placeholder="https://" value="${item.image && /^https?:/.test(item.image) ? v('image') : ''}"></label>
@@ -1372,15 +1373,11 @@
         <h2 style="margin-top:24px">CORREOS PÚBLICOS</h2>
         <div class="form__row">${input('email', 'CONTACTO GENERAL', 'contacto@thethinggame.com', 'email')}${input('supportEmail', 'SOPORTE', 'soporte@thethinggame.com', 'email')}</div>
         ${input('privacyEmail', 'PRIVACIDAD (si es distinto)', 'privacidad@thethinggame.com', 'email')}
-        <h2 style="margin-top:24px">REDES SOCIALES (pie de página)</h2>
-        <p class="form__hint">Pega el enlace completo (https://…). Las que dejes vacías no se muestran.</p>
-        <div class="form__row">${input('youtube', 'YOUTUBE', 'https://youtube.com/@…', 'url')}${input('tiktok', 'TIKTOK', 'https://tiktok.com/@…', 'url')}</div>
-        <div class="form__row">${input('instagram', 'INSTAGRAM', 'https://instagram.com/…', 'url')}${input('x', 'X (TWITTER)', 'https://x.com/…', 'url')}</div>
-        <div class="form__row">${input('discord', 'DISCORD', 'https://discord.gg/…', 'url')}${input('facebook', 'FACEBOOK', 'https://facebook.com/…', 'url')}</div>
-        ${input('twitch', 'TWITCH', 'https://twitch.tv/…', 'url')}
+        <p class="form__hint" style="margin-top:18px">Las redes sociales se configuran en la pestaña <button type="button" class="linkish" data-goto="social">◎ Redes sociales</button>.</p>
         <p class="form__error" id="settingsError" role="alert"></p>
         <div class="form__actions"><a class="btn" href="aviso-legal.html" target="_blank" rel="noopener">Ver aviso legal ↗</a><button class="btn btn--solid" type="submit">▶ Guardar</button></div>
       </form>`;
+    panel.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.goto)));
     $('#settingsForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.currentTarget;
@@ -1390,6 +1387,76 @@
         toast('Datos guardados · ya aparecen en las páginas legales');
         renderSettings(panel);
       } catch (ex) { if (!handleAuthError(ex)) { $('#settingsError').textContent = `✖ ${ex.message}`; beep('error'); } }
+    });
+  }
+
+
+  /* ------------------------------------------------------------------ */
+  /* Redes sociales: botones del pie, la portada y "Únete"              */
+  /* ------------------------------------------------------------------ */
+
+  const SOCIAL_PATTERNS = { youtube: 'https://www.youtube.com/@%s', tiktok: 'https://www.tiktok.com/@%s', instagram: 'https://www.instagram.com/%s', x: 'https://x.com/%s',
+    discord: 'https://discord.gg/%s', facebook: 'https://www.facebook.com/%s', twitch: 'https://www.twitch.tv/%s', googleplay: 'https://play.google.com/store/apps/developer?id=%s',
+    steam: 'https://store.steampowered.com/developer/%s', itchio: 'https://%s.itch.io' };
+  /** Igual que social_url() del servidor: acepta @usuario, usuario o el enlace. */
+  function socialUrl(k, v) {
+    v = String(v || '').trim();
+    if (!v) return '';
+    if (/^https?:\/\//i.test(v) || (v.includes('/') && v[0] !== '@')) return /^https?:\/\//i.test(v) ? v.replace(/^http:/i, 'https:') : `https://${v}`;
+    const h = v.replace(/^@/, '').replace(/[^\w.-]/g, '');
+    return h ? SOCIAL_PATTERNS[k].replace('%s', encodeURIComponent(h)) : '';
+  }
+
+  async function renderSocial(panel) {
+    panelLoading(panel, '◎ REDES SOCIALES');
+    let s;
+    try { s = await api('api/settings.php'); } catch (err) {
+      if (!handleAuthError(err)) panel.innerHTML = `<div class="empty">✖ ${esc(err.message)}</div>`;
+      return;
+    }
+    if (tab !== 'social') return;
+    const nets = window.TT.SOCIALS;
+    panel.innerHTML = `
+      <div class="panel-head"><div><h1>◎ REDES SOCIALES</h1><p>Los botones aparecen en la portada, en el bloque «Únete» y en el pie de todas las páginas. Deja vacía la que no uses.</p></div></div>
+      <div class="box social-preview"><h2>VISTA PREVIA</h2><div class="socials" id="socialPreview"></div></div>
+      <form class="box form" id="socialForm" novalidate>
+        <p class="form__hint">Puedes pegar el enlace completo (https://…) o escribir solo tu <b>@usuario</b>: el enlace se arma solo.</p>
+        <div class="social-list">
+          ${nets.map((n) => `
+            <label class="social-row" style="--brand:${n.color}">
+              <span class="social-row__icon">${n.icon}</span>
+              <span class="social-row__main">
+                <span class="social-row__name">${esc(n.name)}</span>
+                <input name="${n.key}" value="${esc(s[n.key] || '')}" placeholder="${esc(n.hint)}" autocomplete="off" spellcheck="false">
+                <small class="social-row__out" data-out="${n.key}"></small>
+              </span>
+            </label>`).join('')}
+        </div>
+        <p class="form__error" id="socialError" role="alert"></p>
+        <div class="form__actions"><a class="btn" href="index.html" target="_blank" rel="noopener">Ver la web ↗</a><button class="btn btn--solid" type="submit">▶ Guardar redes</button></div>
+      </form>`;
+    const form = $('#socialForm');
+    const update = () => {
+      const live = [];
+      nets.forEach((n) => {
+        const url = socialUrl(n.key, form.elements[n.key].value);
+        const out = form.querySelector(`[data-out="${n.key}"]`);
+        out.innerHTML = url ? `→ <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)} ↗</a>` : (form.elements[n.key].value.trim() ? '✖ No se entiende este enlace' : 'Sin configurar (no se muestra)');
+        if (url) live.push(`<a class="social" href="${esc(url)}" target="_blank" rel="noopener noreferrer" title="${esc(n.name)}" style="--brand:${n.color}">${n.icon}</a>`);
+      });
+      $('#socialPreview').innerHTML = live.join('') || '<span class="form__hint">Todavía no hay ninguna red: escribe al menos una abajo.</span>';
+    };
+    form.addEventListener('input', update);
+    update();
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(nets.map((n) => [n.key, form.elements[n.key].value.trim()]));
+      try {
+        await api('api/settings.php?action=save', { json: data });
+        toast('Redes guardadas · ya funcionan en la web');
+        beep('coin');
+        renderSocial(panel);
+      } catch (ex) { if (!handleAuthError(ex)) { $('#socialError').textContent = `✖ ${ex.message}`; beep('error'); } }
     });
   }
 

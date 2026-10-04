@@ -21,6 +21,6 @@ if ($method !== 'POST' || ($_GET['action'] ?? '') !== 'save') fail(404, 'Acción
 require_admin();
 $settings = sanitize_settings(read_json());
 respond(200, with_db(function (array &$db) use ($settings) {
-    $db['settings'] = $settings;
+    $db['settings'] = array_merge($db['settings'], $settings);
     return public_settings($db);
 }, true));

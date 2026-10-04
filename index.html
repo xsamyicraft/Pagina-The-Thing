@@ -13,7 +13,7 @@
   <meta property="og:image" content="https://thethinggame.com/assets/img/logo-email.png">
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
-  <link rel="stylesheet" href="assets/css/style.css?v=5">
+  <link rel="stylesheet" href="assets/css/style.css?v=6">
 </head>
 <body class="fx-on" data-page="home">
   <a class="skip-link" href="#main">Saltar al contenido</a>
@@ -35,41 +35,56 @@
       <button class="boot__skip" id="bootSkip" type="button">SALTAR &gt;&gt;</button>
     </div>
 
-    <section class="hero" id="inicio">
+    <!-- Portada: canales de TV que se van cambiando (destacados con imagen) -->
+    <section class="hero hero--tv" id="inicio" aria-roledescription="carrusel" aria-label="Destacados de THE THING">
+      <div class="hero__bg" id="heroBg" aria-hidden="true"></div>
       <div class="hero__glow" aria-hidden="true"></div>
       <div class="hero__grid" aria-hidden="true"></div>
       <div class="hero__hud" aria-hidden="true">
         <span class="rec">REC</span>
-        <span>CH-01 &nbsp; <span id="hudClock">00:00:00</span></span>
+        <span><span id="heroCh">CH-01</span> &nbsp; <span id="hudClock">00:00:00</span></span>
       </div>
-      <div class="container hero__inner">
-        <div>
-          <p class="eyebrow">Estudio independiente de videojuegos</p>
-          <h1 class="hero__title">
-            <small>— BIENVENIDO A —</small>
-            <span class="glitch" data-text="THE THING">THE THING</span>
-          </h1>
-          <p class="hero__lead"><span id="typed"></span><span class="caret" aria-hidden="true"></span></p>
-          <div class="hero__cta">
-            <a class="btn btn--solid" href="juegos.html" data-transition>▶ Ver juegos</a>
-            <a class="btn" href="noticias.html" data-transition>Últimas noticias</a>
-          </div>
-        </div>
-        <div class="hero__art-wrap">
-          <div class="hero__art">
-            <div class="cat" id="cat" role="img" aria-label="Logo de THE THING: un gato glitch con ojos que gotean">
-              <img class="cat__ghost cat__ghost--r" src="assets/img/logo-head.webp" alt="">
-              <img class="cat__ghost cat__ghost--c" src="assets/img/logo-head.webp" alt="">
-              <img class="cat__head" src="assets/img/logo-head.webp" alt="" width="680" height="740">
-              <span class="cat__eye cat__eye--l"><i class="cat__pupil"></i></span>
-              <span class="cat__eye cat__eye--r"><i class="cat__pupil"></i></span>
-              <img class="cat__paw cat__paw--l" src="assets/img/paw-left.webp" alt="">
-              <img class="cat__paw cat__paw--r" src="assets/img/paw-right.webp" alt="">
+      <div class="container hero__stage">
+        <div class="hero__slides" id="heroSlides">
+          <article class="hslide hslide--intro is-active" data-slide="0" role="group" aria-roledescription="diapositiva">
+            <div class="hslide__text">
+              <p class="eyebrow">Estudio independiente de videojuegos</p>
+              <h1 class="hero__title">
+                <small>— BIENVENIDO A —</small>
+                <span class="glitch" data-text="THE THING">THE THING</span>
+              </h1>
+              <p class="hero__lead"><span id="typed"></span><span class="caret" aria-hidden="true"></span></p>
+              <div class="hero__cta">
+                <a class="btn btn--solid btn--glow" href="juegos.html" data-transition>▶ Jugar ahora</a>
+                <button class="btn" type="button" data-join>✚ Únete gratis</button>
+              </div>
+              <div class="hero__socials" data-socials-wrap hidden>
+                <span class="hero__socials-label">SÍGUENOS</span>
+                <div class="socials" data-socials></div>
+              </div>
             </div>
-          </div>
+            <div class="hslide__art hero__art-wrap">
+              <div class="hero__art">
+                <div class="cat" id="cat" role="img" aria-label="Logo de THE THING: un gato glitch con ojos que gotean">
+                  <img class="cat__ghost cat__ghost--r" src="assets/img/logo-head.webp" alt="">
+                  <img class="cat__ghost cat__ghost--c" src="assets/img/logo-head.webp" alt="">
+                  <img class="cat__head" src="assets/img/logo-head.webp" alt="" width="680" height="740">
+                  <span class="cat__eye cat__eye--l"><i class="cat__pupil"></i></span>
+                  <span class="cat__eye cat__eye--r"><i class="cat__pupil"></i></span>
+                  <img class="cat__paw cat__paw--l" src="assets/img/paw-left.webp" alt="">
+                  <img class="cat__paw cat__paw--r" src="assets/img/paw-right.webp" alt="">
+                </div>
+              </div>
+            </div>
+          </article>
         </div>
       </div>
-      <a class="scroll-hint" href="#destacado">PRESIONA ▼<br><span class="blink">START</span></a>
+      <div class="hero__rail-wrap">
+        <div class="container">
+          <div class="hero__rail" id="heroRail" role="tablist" aria-label="Canales destacados"></div>
+        </div>
+      </div>
+      <div class="hero__static" id="heroStatic" aria-hidden="true"></div>
     </section>
 
     <!-- Cinta de titulares -->
@@ -82,11 +97,12 @@
         <div class="section-head reveal">
           <div>
             <p class="eyebrow">Player 1 — Select</p>
-            <h2 class="section-title">Juego destacado</h2>
+            <h2 class="section-title">Selecciona tu juego</h2>
           </div>
           <a class="btn btn--sm" href="juegos.html" data-transition>Todos los juegos ▶</a>
         </div>
         <div id="featured"></div>
+        <div class="game-strip" id="homeGames"></div>
       </div>
     </section>
 
@@ -104,22 +120,42 @@
       </div>
     </section>
 
-    <section class="section" id="explorar">
+    <section class="section promo" id="videoclub">
+      <div class="container promo__inner">
+        <div class="promo__text reveal">
+          <p class="eyebrow">Videoclub abierto 24 h</p>
+          <h2 class="section-title">Rebobina y dale play</h2>
+          <p class="section-sub">Tráilers, diarios de desarrollo y cosas que no deberías ver de noche. Elige un cassette y se reproduce en nuestra tele de los 80.</p>
+          <a class="btn btn--solid" href="videos.html" data-transition>▶ Entrar al videoclub</a>
+        </div>
+        <div class="vhs-row" id="homeVideos"></div>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="merch">
       <div class="container">
         <div class="section-head reveal">
           <div>
-            <p class="eyebrow">Mapa del mundo</p>
-            <h2 class="section-title">Elige tu destino</h2>
+            <p class="eyebrow">Merch oficial</p>
+            <h2 class="section-title">Lleva a la cosa contigo</h2>
+            <p class="section-sub">Camisetas, tazas y otros objetos malditos. Sin cuenta y con envío a casa.</p>
           </div>
+          <a class="btn btn--sm" href="tienda.html" data-transition>Ir a la tienda ▶</a>
         </div>
-        <div class="tiles">
-          <a class="tile reveal" href="juegos.html" data-transition style="--d:0s"><span class="tile__icon" aria-hidden="true">▶</span><span class="tile__name">JUEGOS</span><span class="tile__info" data-count-type="app" data-one="cartucho" data-many="cartuchos" data-none="Muy pronto">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
-          <a class="tile reveal" href="videos.html" data-transition style="--d:.06s"><span class="tile__icon" aria-hidden="true">▷</span><span class="tile__name">VIDEOCLUB</span><span class="tile__info" data-count-type="video" data-one="cassette" data-many="cassettes" data-none="Estante vacío">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
-          <a class="tile reveal" href="noticias.html" data-transition style="--d:.12s"><span class="tile__icon" aria-hidden="true">✉</span><span class="tile__name">NOTICIAS</span><span class="tile__info" data-count-type="news" data-one="transmisión" data-many="transmisiones" data-none="Sin señal">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
-          <a class="tile reveal" href="galeria.html" data-transition style="--d:.18s"><span class="tile__icon" aria-hidden="true">▣</span><span class="tile__name">GALERÍA</span><span class="tile__info" data-count-type="image" data-one="imagen" data-many="imágenes" data-none="Álbum vacío">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
-          <a class="tile reveal" href="tienda.html" data-transition style="--d:.24s"><span class="tile__icon" aria-hidden="true">$</span><span class="tile__name">TIENDA</span><span class="tile__info" data-count-type="product" data-one="producto" data-many="productos" data-none="Abre pronto">&nbsp;</span><span class="tile__go">ENTRAR</span></a>
-          <a class="tile reveal" href="soporte.html" data-transition style="--d:.3s"><span class="tile__icon" aria-hidden="true">?</span><span class="tile__name">SOPORTE</span><span class="tile__info">¿Algo falla? Te ayudamos</span><span class="tile__go">ENTRAR</span></a>
+        <div class="merch-row" id="homeShop"></div>
+      </div>
+    </section>
+
+    <section class="section" id="fotos">
+      <div class="container">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Archivo visual</p>
+            <h2 class="section-title">Desde dentro del estudio</h2>
+          </div>
+          <a class="btn btn--sm" href="galeria.html" data-transition>Ver galería ▶</a>
         </div>
+        <div class="photo-strip" id="homeGallery"></div>
       </div>
     </section>
 
@@ -146,17 +182,21 @@
           <button class="btn btn--solid" type="button" data-join>▶ Nuevo jugador</button>
           <a class="btn" href="soporte.html?tipo=prensa#contacto" data-transition>✉ Insertar moneda</a>
         </div>
+        <div class="join-socials" data-socials-wrap hidden>
+          <p class="footer-follow">SÍGUENOS EN REDES</p>
+          <div class="socials socials--labels" data-socials="labels"></div>
+        </div>
       </div>
     </section>
   </main>
 
   <footer id="footer"></footer>
 
-  <script src="assets/js/common.js?v=5"></script>
-  <script src="assets/js/demo.js?v=5"></script>
-  <script src="assets/js/layout.js?v=5"></script>
-  <script src="assets/js/captcha.js?v=5"></script>
-  <script src="assets/js/account.js?v=5"></script>
-  <script src="assets/js/main.js?v=5"></script>
+  <script src="assets/js/common.js?v=6"></script>
+  <script src="assets/js/demo.js?v=6"></script>
+  <script src="assets/js/layout.js?v=6"></script>
+  <script src="assets/js/captcha.js?v=6"></script>
+  <script src="assets/js/account.js?v=6"></script>
+  <script src="assets/js/main.js?v=6"></script>
 </body>
 </html>

@@ -196,6 +196,7 @@ function start_session(bool $create = false): bool
     // El administrador se desconecta tras SESSION_HOURS sin actividad
     if (isset($_SESSION['admin'], $_SESSION['last']) && time() - $_SESSION['last'] > SESSION_HOURS * 3600) {
         unset($_SESSION['admin']);
+        if (!empty($_SESSION['staff'])) unset($_SESSION['member'], $_SESSION['staff']);
     }
     $_SESSION['last'] = time();
     return true;
@@ -217,7 +218,43 @@ function require_admin(): string
 function current_member_id(): ?string
 {
     if (!start_session()) return null;
+    if (empty($_SESSION['member']) && !empty($_SESSION['admin'])) link_staff_session();
     return $_SESSION['member'] ?? null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cuenta del staff: el administrador también es jugador en la web     */
+/* ------------------------------------------------------------------ */
+
+const STAFF_NAME = 'THE THING';
+const RESERVED_NAMES = ['thething', 'admin', 'administrador', 'administrator', 'staff', 'soporte', 'support', 'moderador', 'mod', 'oficial'];
+
+/** Devuelve el id del jugador del staff (lo crea la primera vez). */
+function staff_member_id(array &$db): string
+{
+    foreach ($db['members'] as $m) if (!empty($m['staff'])) return $m['id'];
+    $m = [
+        'id' => new_id(), 'name' => STAFF_NAME, 'email' => strtolower(ADMIN_EMAIL), 'password' => '',
+        'emailNotify' => false, 'createdAt' => now_iso(), 'lastSeen' => '', 'staff' => true,
+    ];
+    $db['members'][] = $m;
+    return $m['id'];
+}
+
+/** Con el panel abierto, la web pública también reconoce al administrador. */
+function link_staff_session(): void
+{
+    $_SESSION['member'] = with_db(function (array &$db) {
+        return staff_member_id($db);
+    }, true);
+    $_SESSION['staff'] = 1;
+}
+
+function is_reserved_name(string $name): bool
+{
+    $ascii = function_exists('iconv') ? (@iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name) ?: $name) : $name;
+    $key = preg_replace('/[^a-z0-9]/', '', strtolower($ascii));
+    return in_array($key, RESERVED_NAMES, true);
 }
 
 function find_member(array $db, ?string $id): ?array
@@ -366,7 +403,30 @@ const SETTINGS_FIELDS = [
     'legalName' => 140, 'tradeName' => 80, 'taxId' => 60, 'address' => 200, 'country' => 40, 'jurisdiction' => 120,
     'registry' => 200, 'email' => 120, 'supportEmail' => 120, 'privacyEmail' => 120, 'minAge' => 2,
     'youtube' => 300, 'tiktok' => 300, 'instagram' => 300, 'x' => 300, 'discord' => 300, 'facebook' => 300, 'twitch' => 300,
+    'googleplay' => 300, 'steam' => 300, 'itchio' => 300,
 ];
+// Redes sociales: aceptan el enlace completo o solo el @usuario
+const SOCIAL_PATTERNS = [
+    'youtube' => 'https://www.youtube.com/@%s', 'tiktok' => 'https://www.tiktok.com/@%s', 'instagram' => 'https://www.instagram.com/%s',
+    'x' => 'https://x.com/%s', 'discord' => 'https://discord.gg/%s', 'facebook' => 'https://www.facebook.com/%s',
+    'twitch' => 'https://www.twitch.tv/%s', 'googleplay' => 'https://play.google.com/store/apps/developer?id=%s',
+    'steam' => 'https://store.steampowered.com/developer/%s', 'itchio' => 'https://%s.itch.io',
+];
+
+/** Convierte "@usuario", "usuario" o un enlace en una URL https válida ('' si no se puede). */
+function social_url(string $network, string $v): string
+{
+    $v = trim($v);
+    if ($v === '') return '';
+    if (preg_match('#^https?://#i', $v) || (strpos($v, '/') !== false && $v[0] !== '@')) {
+        if (!preg_match('#^https?://#i', $v)) $v = 'https://' . $v;
+        $url = clean_url($v);
+        return strpos($url, 'http') === 0 ? preg_replace('#^http://#i', 'https://', $url) : '';
+    }
+    $handle = preg_replace('/[^\w.\-]/u', '', ltrim($v, '@'));
+    if ($handle === '') return '';
+    return sprintf(SOCIAL_PATTERNS[$network], rawurlencode($handle));
+}
 
 function public_settings(array $db): array
 {
@@ -379,18 +439,20 @@ function public_settings(array $db): array
     return $out;
 }
 
+/** Limpia solo los campos que llegan (cada formulario del panel guarda su parte). */
 function sanitize_settings(array $in): array
 {
     $out = [];
     foreach (SETTINGS_FIELDS as $k => $max) {
-        $v = clean_str($in[$k] ?? '', $max);
+        if (!array_key_exists($k, $in)) continue;
+        $v = clean_str($in[$k], $max);
         if (in_array($k, ['email', 'supportEmail', 'privacyEmail'], true) && $v !== '') {
             $v = clean_email($v);
             if ($v === '') fail(400, 'Revisa el correo del campo «' . $k . '»');
         }
-        if (in_array($k, ['youtube', 'tiktok', 'instagram', 'x', 'discord', 'facebook', 'twitch'], true) && $v !== '') {
-            $v = clean_url($v);
-            if ($v === '' || strpos($v, 'http') !== 0) fail(400, 'El enlace de ' . $k . ' debe empezar por https://');
+        if (isset(SOCIAL_PATTERNS[$k]) && $v !== '') {
+            $v = social_url($k, $v);
+            if ($v === '') fail(400, 'No entendimos el enlace de ' . $k . '. Pega la dirección completa (https://…) o tu @usuario.');
         }
         if ($k === 'minAge') $v = (string) max(13, min(18, (int) ($v ?: 13)));
         $out[$k] = $v;

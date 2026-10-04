@@ -81,7 +81,8 @@ if ($action === 'create' && $method === 'POST') {
     if (empty($in['accept'])) fail(400, 'Debes aceptar la política de privacidad');
     require_captcha($in['captcha'] ?? '');
 
-    $ticket = with_db(function (array &$db) use ($name, $email, $category, $subject, $message, $order, $game) {
+    $memberId = current_member_id() ?? '';
+    $ticket = with_db(function (array &$db) use ($name, $email, $category, $subject, $message, $order, $game, $memberId) {
         if (rate_limited($db, 'support:' . ip_key(), 5, 3600)) return 'limited';
         $gameTitle = '';
         foreach ($db['content'] as $i) if ($i['id'] === $game && $i['type'] === 'app') $gameTitle = $i['title'];
@@ -97,7 +98,7 @@ if ($action === 'create' && $method === 'POST') {
         $t = [
             'id' => new_id(), 'code' => $code, 'name' => $name, 'email' => $email, 'category' => $category,
             'categoryLabel' => SUPPORT_CATEGORIES[$category], 'subject' => $subject, 'status' => 'open',
-            'member' => current_member_id() ?? '', 'createdAt' => $now, 'updatedAt' => $now,
+            'member' => $memberId, 'createdAt' => $now, 'updatedAt' => $now,
             'messages' => [['from' => 'user', 'text' => $text, 'at' => $now]],
         ];
         array_unshift($db['tickets'], $t);

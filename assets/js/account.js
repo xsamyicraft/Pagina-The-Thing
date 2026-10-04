@@ -39,9 +39,10 @@
     me = member;
     const btn = $('#acctBtn');
     const bell = $('#bellBtn');
+    btn.classList.toggle('is-staff', !!(me && me.staff));
     if (me) {
-      btn.innerHTML = `<span class="initial" aria-hidden="true">${esc(me.name.charAt(0).toUpperCase())}</span><span class="acct-label">${esc(me.name)}</span>`;
-      btn.title = 'Mi cuenta';
+      btn.innerHTML = `<span class="initial" aria-hidden="true">${me.staff ? '★' : esc(me.name.charAt(0).toUpperCase())}</span><span class="acct-label">${esc(me.name)}</span>`;
+      btn.title = me.staff ? 'Cuenta del staff' : 'Mi cuenta';
       bell.hidden = false;
     } else {
       btn.innerHTML = `${site.icons.user}<span class="acct-label">Entrar</span>`;
@@ -134,6 +135,7 @@
       btn.disabled = true;
       try {
         const res = await api(`api/members.php?action=${isReg ? 'register' : 'login'}`, { json: data });
+        if (res.staffLogin) return staffLogin(data, btn, err);
         setMember(res.member, res.unread);
         authModal.close();
         beep('coin');
@@ -151,6 +153,74 @@
         authModal.panel.animate([{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'none' }], { duration: 260 });
       }
     });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Acceso del staff desde la web: contraseña del panel + PIN           */
+  /* ------------------------------------------------------------------ */
+
+  async function staffLogin(data, btn, err) {
+    try {
+      const res = await api('api/auth.php?action=login', { json: { email: data.email, password: data.password } });
+      if (res.user) return finishStaff();
+      renderPinStep(res);
+    } catch (ex) {
+      err.textContent = `✖ ${ex.message === 'Credenciales incorrectas' ? 'Correo o contraseña incorrectos' : ex.message}`;
+      beep('error');
+      btn.disabled = false;
+      captcha.reset();
+    }
+  }
+
+  function renderPinStep(info) {
+    const box = $('#authBox');
+    if (captcha) captcha.destroy();
+    box.innerHTML = `
+      <img class="auth__logo" src="assets/img/logo-small.webp" alt="" width="90" height="98">
+      <h2>ACCESO STAFF</h2>
+      <p class="auth__sub">${info.mailSent === false ? 'No pudimos enviar el correo: el PIN está en <b>data/ultimo-pin.php</b> del servidor.' : `Te enviamos un PIN de 6 dígitos a <b>${esc(info.sentTo || 'tu correo')}</b>. Caduca en ${info.minutes || 10} minutos.`}
+        ${info.demoPin ? `<br><span style="color:var(--acc)">MODO DEMO · PIN: ${esc(info.demoPin)}</span>` : ''}</p>
+      <form class="tt-form" id="pinStep" novalidate>
+        <label class="tt-field"><span>PIN</span><input name="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" required data-autofocus class="pin-input" placeholder="••••••"></label>
+        <p class="tt-error" role="alert"></p>
+        <button class="btn btn--solid" type="submit" style="justify-content:center">▶ Verificar</button>
+        <p class="auth__sub" style="margin:0"><button type="button" class="linkish" id="pinResend">Reenviar PIN</button></p>
+      </form>`;
+    const form = $('#pinStep');
+    setTimeout(() => form.pin.focus(), 60);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = form.querySelector('.tt-error');
+      const pin = form.pin.value.replace(/\D/g, '');
+      if (pin.length !== 6) { err.textContent = '✖ El PIN tiene 6 números'; return beep('error'); }
+      try {
+        await api('api/auth.php?action=verify', { json: { pin } });
+        finishStaff();
+      } catch (ex) {
+        err.textContent = `✖ ${ex.message}`;
+        beep('error');
+        if (ex.status === 401) setTimeout(() => renderAuth('login', 'Vuelve a entrar con tu contraseña.'), 1400);
+      }
+    });
+    $('#pinResend').addEventListener('click', async () => {
+      try {
+        const r = await api('api/auth.php?action=resend', { method: 'POST' });
+        toast('PIN REENVIADO');
+        if (r.demoPin) renderPinStep(r);
+      } catch (ex) { toast(ex.message, 'error'); }
+    });
+  }
+
+  async function finishStaff() {
+    const r = await api('api/members.php?action=me');
+    setMember(r.member, r.unread);
+    authModal.close();
+    beep('coin');
+    toast('¡HOLA, STAFF! YA ESTÁS DENTRO DE LA WEB Y DEL PANEL');
+    startPolling();
+    const action = pendingAction;
+    pendingAction = null;
+    if (action) action();
   }
 
   /* ------------------------------------------------------------------ */
@@ -218,13 +288,15 @@
     accountModal.open(`${closeBtn}
       <div class="auth">
         <h2>${esc(me.name.toUpperCase())}</h2>
-        <p class="auth__sub">${esc(me.email)} · jugador desde ${formatDate(me.createdAt)}</p>
+        ${me.staff ? '<p class="staff-tag staff-tag--big">★ CUENTA DEL STAFF</p>' : ''}
+        <p class="auth__sub">${esc(me.email)} · ${me.staff ? 'tus reseñas y comentarios salen con la insignia STAFF' : `jugador desde ${formatDate(me.createdAt)}`}</p>
         <div class="tt-form">
           <label class="tt-check"><input type="checkbox" id="prefEmail"${me.emailNotify ? ' checked' : ''}> <span>Recibir avisos de novedades por correo</span></label>
           ${notifState}
+          ${me.staff ? '<a class="btn btn--solid" href="admin.html" style="justify-content:center">▶ Abrir panel del staff</a>' : ''}
           <button class="btn" type="button" id="openNotifs" style="justify-content:center">Ver mis avisos</button>
           <button class="btn btn--danger" type="button" id="logoutMember" style="justify-content:center">Cerrar sesión</button>
-          <details class="acct-data">
+          <details class="acct-data"${me.staff ? ' hidden' : ''}>
             <summary>PRIVACIDAD Y MIS DATOS</summary>
             <p>Puedes descargar una copia de todo lo que guardamos sobre ti o borrar tu cuenta para siempre (también se borran tus reseñas, comentarios y votos). <a href="privacidad.html">Política de privacidad</a></p>
             <button class="btn btn--sm" type="button" id="exportData">⬇ Descargar mis datos</button>
@@ -254,10 +326,11 @@
     });
     $('#openNotifs').addEventListener('click', () => { accountModal.close(); setTimeout(openDrawer, 320); });
     $('#logoutMember').addEventListener('click', async () => {
+      const wasStaff = !!me.staff;
       try { await api('api/members.php?action=logout', { method: 'POST' }); } catch { /* ignore */ }
       accountModal.close();
       setMember(null);
-      toast('SESIÓN CERRADA. ¡HASTA PRONTO!');
+      toast(wasStaff ? 'SESIÓN DEL STAFF CERRADA (WEB Y PANEL)' : 'SESIÓN CERRADA. ¡HASTA PRONTO!');
     });
     $('#exportData').addEventListener('click', async () => {
       try {

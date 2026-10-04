@@ -24,7 +24,7 @@ function public_member(array $m): array
 {
     return [
         'id' => $m['id'], 'name' => $m['name'], 'email' => $m['email'],
-        'emailNotify' => !empty($m['emailNotify']), 'createdAt' => $m['createdAt'],
+        'emailNotify' => !empty($m['emailNotify']), 'createdAt' => $m['createdAt'], 'staff' => !empty($m['staff']),
     ];
 }
 
@@ -148,6 +148,7 @@ if ($action === 'register') {
     if ($email === '') fail(400, 'El correo no es válido');
     if (strlen($password) < 8) fail(400, 'La contraseña debe tener al menos 8 caracteres');
     if ($email === strtolower(ADMIN_EMAIL)) fail(400, 'Ese correo está reservado');
+    if (is_reserved_name($name)) fail(400, 'Ese nombre de jugador está reservado');
     if (empty($in['accept'])) fail(400, 'Debes aceptar los Términos y la Política de privacidad');
     require_captcha($in['captcha'] ?? '');
 
@@ -187,11 +188,13 @@ if ($action === 'login') {
     $email = clean_email($in['email'] ?? '');
     $password = (string) ($in['password'] ?? '');
     require_captcha($in['captcha'] ?? '');
+    // El correo del staff entra con su contraseña del panel y el PIN (api/auth.php)
+    if ($email === strtolower(ADMIN_EMAIL)) respond(200, ['staffLogin' => true]);
     $key = 'member:' . ip_key();
     $res = with_db(function (array &$db) use ($email, $password, $key) {
         if (too_many($db, $key, 8, 300)) return 'locked';
         foreach ($db['members'] as $m) {
-            if ($m['email'] === $email && password_verify($password, $m['password'])) {
+            if (empty($m['staff']) && $m['email'] === $email && password_verify($password, $m['password'])) {
                 clear_rate_limit($db, $key);
                 return ['member' => public_member($m), 'unread' => member_notifications($db, $m)['unread']];
             }
@@ -206,7 +209,11 @@ if ($action === 'login') {
 }
 
 if ($action === 'logout') {
-    if (start_session()) unset($_SESSION['member']);
+    if (start_session()) {
+        // Si es la cuenta del staff, cierra también el panel
+        if (!empty($_SESSION['staff'])) unset($_SESSION['admin'], $_SESSION['staff']);
+        unset($_SESSION['member']);
+    }
     respond(200, ['ok' => true]);
 }
 
@@ -234,6 +241,7 @@ if ($action === 'delete') {
         if (rate_limited($db, 'member-delete:' . $id, 6, 900)) return 'limited';
         $m = find_member($db, $id);
         if (!$m) return 'missing';
+        if (!empty($m['staff'])) return 'staff';
         if (!password_verify($password, $m['password'])) return 'bad';
         $db['members'] = array_values(array_filter($db['members'], function ($x) use ($id) {
             return $x['id'] !== $id;
@@ -252,6 +260,7 @@ if ($action === 'delete') {
     }, true);
     if ($res === 'limited') fail(429, 'Demasiados intentos. Espera unos minutos.');
     if ($res === 'bad') fail(400, 'La contraseña no es correcta');
+    if ($res === 'staff') fail(400, 'La cuenta del staff no se puede borrar');
     if ($res === 'missing') fail(401, 'Inicia sesión primero');
     unset($_SESSION['member']);
     respond(200, ['ok' => true]);

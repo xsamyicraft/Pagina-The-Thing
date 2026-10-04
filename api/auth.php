@@ -26,6 +26,7 @@ function admin_session_start(): void
     unset($_SESSION['pending_admin']);
     $_SESSION['admin'] = ADMIN_EMAIL;
     $_SESSION['last'] = time();
+    link_staff_session();        // también queda conectado en la web pública
 }
 
 function mask_email(string $email): string
@@ -174,7 +175,10 @@ if ($action === 'verify') {
 }
 
 if ($action === 'logout') {
-    if (start_session()) unset($_SESSION['admin'], $_SESSION['pending_admin']);
+    if (start_session()) {
+        unset($_SESSION['admin'], $_SESSION['pending_admin']);
+        if (!empty($_SESSION['staff'])) unset($_SESSION['member'], $_SESSION['staff']);
+    }
     respond(200, ['ok' => true]);
 }
 

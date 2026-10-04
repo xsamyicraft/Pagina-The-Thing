@@ -229,5 +229,20 @@
     initPageTransitions();
   }
 
-  window.TT = { api, escapeHtml, formatText, formatDate, beep, toast, createModal, store, reduceMotion, initCommon };
+  /* --- Redes sociales (iconos compartidos por la web y el panel) --- */
+  const icon = (inner) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+  const SOCIALS = [
+    { key: 'youtube', name: 'YouTube', color: '#ff3355', hint: '@tucanal', icon: icon('<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/>') },
+    { key: 'tiktok', name: 'TikTok', color: '#38e8ff', hint: '@tuusuario', icon: icon('<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.6 2.6 2.6 4.4 5.5 4.6"/>') },
+    { key: 'instagram', name: 'Instagram', color: '#ff7ad9', hint: '@tuusuario', icon: icon('<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="currentColor"/>') },
+    { key: 'x', name: 'X', color: '#ebe6d8', hint: '@tuusuario', icon: icon('<path d="M4 4l16 16M20 4L4 20"/>') },
+    { key: 'discord', name: 'Discord', color: '#b18cff', hint: 'código de invitación o enlace', icon: icon('<path d="M7 7.5c3.3-1.6 6.7-1.6 10 0l2 8.5c-1.7 1.4-3.7 2.2-3.7 2.2l-1.1-1.8c-1.4.4-3 .4-4.4 0l-1.1 1.8S6.7 17.4 5 16z"/><circle cx="9.5" cy="12.5" r=".8" fill="currentColor"/><circle cx="14.5" cy="12.5" r=".8" fill="currentColor"/>') },
+    { key: 'facebook', name: 'Facebook', color: '#7ad7ff', hint: 'tupagina', icon: icon('<path d="M14 8.5h3V5h-3a4 4 0 0 0-4 4v2.5H7.5V15H10v6h3.5v-6H16l.7-3.5h-3.2V9a.5.5 0 0 1 .5-.5z"/>') },
+    { key: 'twitch', name: 'Twitch', color: '#b18cff', hint: 'tucanal', icon: icon('<path d="M4 3h16v11l-4 4h-4l-3 3v-3H4z"/><path d="M11 8v4M15 8v4"/>') },
+    { key: 'googleplay', name: 'Google Play', color: '#6bff7f', hint: 'nombre de desarrollador o enlace', icon: icon('<path d="M5 3l14 9-14 9z"/><path d="M5 3l9.5 9L5 21"/>') },
+    { key: 'steam', name: 'Steam', color: '#7ad7ff', hint: 'enlace de tu página de Steam', icon: icon('<circle cx="15.5" cy="8.5" r="3.5"/><circle cx="8.5" cy="16" r="2.5"/><path d="M10.8 14.6l2.6-3.2M2 13.5l4.3 1.7"/>') },
+    { key: 'itchio', name: 'itch.io', color: '#ff5f6d', hint: 'tuusuario (de tuusuario.itch.io)', icon: icon('<path d="M3 9l2-5h14l2 5"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M4 11v9h16v-9"/><path d="M10 20v-4h4v4"/>') },
+  ];
+
+  window.TT = { api, escapeHtml, formatText, formatDate, beep, toast, createModal, store, reduceMotion, initCommon, SOCIALS };
 })();

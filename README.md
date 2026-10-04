@@ -9,7 +9,7 @@ populares, compañía, soporte y legal, botón **Volver arriba**):
 
 | Página | Qué tiene |
 |---|---|
-| `index.html` | Pantalla de arranque BIOS, logo animado, cinta de titulares, juego destacado, últimas noticias con pestañas por juego, accesos a cada sección, datos "High scores" y ¿Continuar? |
+| `index.html` | Pantalla de arranque BIOS y **portada con canales de TV**: el gato animado y, en cada canal, un destacado con su imagen (juego, noticia, vídeo, producto) que cambia solo cada 8 s con interferencia de tele. Debajo: cinta de titulares, juegos con imagen, últimas noticias, videoclub con cajas VHS, merch, fotos, datos y ¿Continuar? con tus redes |
 | `juegos.html` | Todos los juegos (filtro Todos / Disponibles / En camino), fichas con reseñas y **votaciones** |
 | `noticias.html` | Noticias en tarjetas con fecha, título y **LEER MÁS**, con **pestañas por juego** |
 | `videos.html` | Videoclub: estante de cassettes, vídeo VHS y tele CRT |
@@ -137,6 +137,14 @@ explica la causa, pero las más comunes son:
   subcarpeta.
 - **PHP o permisos**: abre `api/check.php` y revisa qué sale en `false`.
 
+### El staff también es jugador en la web
+
+Al entrar al panel quedas conectado en la web pública como **THE THING** (con
+la insignia ★ STAFF en tus reseñas y comentarios). También puedes entrar desde
+el botón **Entrar** de la web con `admin@thethinggame.com`: pide tu contraseña
+del panel, el minijuego y el PIN. Cerrar sesión en la web cierra también el
+panel (y al revés).
+
 ### Acceso del staff con PIN por correo
 
 Entrar al panel tiene dos pasos: correo + contraseña y, después, un **PIN de 6
@@ -170,7 +178,8 @@ entrar en `admin.html`: te pedirá crear una contraseña nueva.
 | Vídeos          | Enlace de YouTube/Vimeo o MP4                  | Cassettes VHS que se meten en una tele vieja |
 | Tienda          | Producto, precio, moneda, tallas, enlace de compra | Tienda de merch (sin enlace → pedido por correo) |
 | Soporte         | Responder, cerrar, reabrir o borrar consultas  | La respuesta llega por correo con su código |
-| Empresa y legal | Datos del titular, correos públicos, redes     | Páginas legales y pie de página       |
+| Redes sociales  | YouTube, TikTok, Instagram, X, Discord, Facebook, Twitch, Google Play, Steam, itch.io (enlace o @usuario) | Portada, bloque «Únete» y pie de todas las páginas |
+| Empresa y legal | Datos del titular y correos públicos           | Páginas legales y pie de página       |
 | Cuenta          | Cambiar contraseña                             | —                                     |
 
 Al publicar un juego, noticia o imagen, deja marcada la casilla **"Avisar a los

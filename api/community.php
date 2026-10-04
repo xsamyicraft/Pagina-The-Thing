@@ -41,7 +41,7 @@ if ($action === 'comments' && $method === 'GET') {
             if ($c['item'] !== $item) continue;
             $m = find_member($db, $c['member']);
             $out[] = [
-                'id' => $c['id'], 'name' => $m ? $m['name'] : 'JUGADOR BORRADO', 'rating' => $c['rating'] ?? 0,
+                'id' => $c['id'], 'name' => $m ? $m['name'] : 'JUGADOR BORRADO', 'staff' => $m && !empty($m['staff']), 'rating' => $c['rating'] ?? 0,
                 'text' => $c['text'], 'createdAt' => $c['createdAt'], 'updatedAt' => $c['updatedAt'] ?? $c['createdAt'],
                 'mine' => $memberId !== null && $c['member'] === $memberId, 'canDelete' => $isAdmin || ($memberId !== null && $c['member'] === $memberId),
             ];

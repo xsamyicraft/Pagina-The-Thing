@@ -55,16 +55,9 @@
     cart: svg('<path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L20 8H6.2"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/>', ' stroke-width="2.5"'),
     user: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', ' stroke-width="2.5"'),
     menu: svg('<path d="M3 6h18M3 12h18M3 18h18"/>'),
-    youtube: svg('<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/>'),
-    tiktok: svg('<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.6 2.6 2.6 4.4 5.5 4.6"/>'),
-    instagram: svg('<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="currentColor"/>'),
-    x: svg('<path d="M4 4l16 16M20 4L4 20"/>'),
-    discord: svg('<path d="M7 7.5c3.3-1.6 6.7-1.6 10 0l2 8.5c-1.7 1.4-3.7 2.2-3.7 2.2l-1.1-1.8c-1.4.4-3 .4-4.4 0l-1.1 1.8S6.7 17.4 5 16z"/><circle cx="9.5" cy="12.5" r=".8" fill="currentColor"/><circle cx="14.5" cy="12.5" r=".8" fill="currentColor"/>'),
-    facebook: svg('<path d="M14 8.5h3V5h-3a4 4 0 0 0-4 4v2.5H7.5V15H10v6h3.5v-6H16l.7-3.5h-3.2V9a.5.5 0 0 1 .5-.5z"/>'),
-    twitch: svg('<path d="M4 3h16v11l-4 4h-4l-3 3v-3H4z"/><path d="M11 8v4M15 8v4"/>'),
     up: svg('<path d="M12 19V5M5 12l7-7 7 7"/>', ' stroke-width="3"'),
   };
-  const SOCIALS = [['youtube', 'YouTube'], ['tiktok', 'TikTok'], ['instagram', 'Instagram'], ['x', 'X'], ['discord', 'Discord'], ['facebook', 'Facebook'], ['twitch', 'Twitch']];
+  const SOCIALS = window.TT.SOCIALS;
   const COUNTRIES = { AR: 'Argentina', MX: 'México', ES: 'España', CO: 'Colombia', CL: 'Chile', PE: 'Perú', UY: 'Uruguay', US: 'Estados Unidos', OTRO: '' };
 
   /* ------------------------------------------------------------------ */
@@ -195,7 +188,7 @@
       <div class="footer-brand">
         <a href="index.html" data-transition class="footer-logo" aria-label="THE THING, ir al inicio"><img src="assets/img/logo-small.webp" alt="" width="64" height="70"><span>THE THING<small>GAME STUDIO</small></span></a>
         <p class="footer-follow">SÍGUENOS</p>
-        <div class="socials" id="footSocials"></div>
+        <div class="socials" id="footSocials" data-socials></div>
       </div>
       <nav class="footer-cols" aria-label="Pie de página">
         <div>
@@ -291,13 +284,30 @@
       const list = el.dataset.countryOnly.split(',');
       el.hidden = !(list.includes(code) || (list.includes('*') && !['AR', 'MX', 'ES'].includes(code)));
     });
-    const box = $('#footSocials');
-    if (box) {
-      const set = SOCIALS.filter(([k]) => s[k]);
-      box.innerHTML = set.length
-        ? set.map(([k, name]) => `<a class="social" href="${esc(s[k])}" target="_blank" rel="noopener noreferrer" title="${name}">${ICONS[k]}<span class="sr-only">${name}</span></a>`).join('')
-        : SOCIALS.slice(0, 5).map(([k, name]) => `<span class="social is-off" title="${name}: muy pronto">${ICONS[k]}<span class="sr-only">${name} (muy pronto)</span></span>`).join('');
-    }
+    renderSocials(s);
+  }
+
+  /**
+   * Botones de redes ([data-socials]): solo las que el staff configuró en
+   * Panel → Redes sociales. Si no hay ninguna, el pie muestra iconos
+   * apagados y el resto de bloques se ocultan.
+   */
+  function renderSocials(s) {
+    const set = SOCIALS.filter((n) => /^https:\/\//.test(s[n.key] || ''));
+    document.querySelectorAll('[data-socials]').forEach((box) => {
+      const labels = box.dataset.socials === 'labels';
+      if (set.length) {
+        box.innerHTML = set.map((n) => `<a class="social${labels ? ' social--label' : ''}" href="${esc(s[n.key])}" target="_blank" rel="noopener noreferrer" title="${n.name}" style="--brand:${n.color}">${n.icon}<span class="${labels ? 'social__name' : 'sr-only'}">${n.name}</span></a>`).join('');
+        box.hidden = false;
+        const wrap = box.closest('[data-socials-wrap]');
+        if (wrap) wrap.hidden = false;
+      } else if (box.id === 'footSocials') {
+        box.innerHTML = SOCIALS.slice(0, 5).map((n) => `<span class="social is-off" title="${n.name}: muy pronto">${n.icon}<span class="sr-only">${n.name} (muy pronto)</span></span>`).join('');
+      } else {
+        const wrap = box.closest('[data-socials-wrap]');
+        (wrap || box).hidden = true;
+      }
+    });
   }
 
   function applyContent(data) {
@@ -414,18 +424,21 @@
 
   const ACCENTS = { á: ['A', 'acute'], é: ['E', 'acute'], í: ['I', 'acute'], ó: ['O', 'acute'], ú: ['U', 'acute'], ñ: ['N', 'tilde'], ü: ['U', 'dier'] };
   function fixAccents(root = document) {
-    root.querySelectorAll('.page-title, .section-title, .hero__title, .footer-cols h2, .footer-follow, .footer-logo span, .drop__title, .tile__name, .legal__sec h2, .legal__toc-title, .topic__name, .cookie-bar__title, .support-note__title, .store-hero__sign, .bookcase__sign, .auth h2, .cookie-cat b').forEach((el) => {
+    root.querySelectorAll('.page-title, .section-title, .hero__title, .footer-cols h2, .footer-follow, .footer-logo span, .drop__title, .tile__name, .legal__sec h2, .legal__toc-title, .topic__name, .cookie-bar__title, .support-note__title, .store-hero__sign, .bookcase__sign, .auth h2, .cookie-cat b, .hslide__title, .feature__title, .gcard__title, .ncard__title, .cart__title, .product__title, .tape__title, .btn, .ntab, .ncard__more, .hero__socials-label, .vhsbox__brand').forEach((el) => {
       if (el.dataset.acc) return;
       el.dataset.acc = '1';
+      // Con text-transform: uppercase también las minúsculas se ven en mayúscula
+      const upper = getComputedStyle(el).textTransform === 'uppercase';
+      const re = upper ? /[áéíóúñüÁÉÍÓÚÑÜ]/ : /[ÁÉÍÓÚÑÜ]/;
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       const nodes = [];
       while (walker.nextNode()) nodes.push(walker.currentNode);
       nodes.forEach((node) => {
-        if (!/[áéíóúñüÁÉÍÓÚÑÜ]/.test(node.nodeValue)) return;
+        if (!re.test(node.nodeValue)) return;
         const frag = document.createDocumentFragment();
         node.nodeValue.split(/([áéíóúñüÁÉÍÓÚÑÜ])/).forEach((part) => {
           const a = ACCENTS[part.toLowerCase()];
-          if (!a || part.length !== 1) { if (part) frag.appendChild(document.createTextNode(part)); return; }
+          if (!a || part.length !== 1 || !re.test(part)) { if (part) frag.appendChild(document.createTextNode(part)); return; }
           const span = document.createElement('span');
           span.className = `acc acc--${a[1]}`;
           span.textContent = a[0];
