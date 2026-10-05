@@ -22,6 +22,10 @@ RedirectMatch 404 /\.git
   Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self'; connect-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 </IfModule>
 
+# Tipos de archivo del icono y del manifiesto
+AddType image/x-icon .ico
+AddType application/manifest+json .webmanifest
+
 # Caché de recursos estáticos
 <IfModule mod_expires.c>
   ExpiresActive On
@@ -32,6 +36,7 @@ RedirectMatch 404 /\.git
   ExpiresByType image/png "access plus 30 days"
   ExpiresByType image/jpeg "access plus 30 days"
   ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 7 days"
   ExpiresByType text/html "access plus 0 seconds"
 </IfModule>
 
