@@ -43,7 +43,7 @@ function mail_layout(string $preheader, string $inner, string $footerExtra = '')
         // Cabecera
         . '<tr><td style="padding:22px 28px 6px;font-family:' . $c['font'] . ';font-size:12px;color:' . $c['red'] . ';letter-spacing:2px">● REC'
         . '<span style="float:right;color:' . $c['muted'] . '">CH-01 · ' . gmdate('d.m.Y') . '</span></td></tr>'
-        . '<tr><td align="center" style="padding:10px 28px 0"><a href="' . mail_e($site) . '"><img src="' . mail_e($logo) . '" width="120" alt="THE THING" style="display:block;border:0;width:120px;height:auto"></a></td></tr>'
+        . '<tr><td align="center" style="padding:10px 28px 0"><a href="' . mail_e($site) . '"><img src="' . mail_e($logo) . '" width="180" alt="THE THING" style="display:block;border:0;width:180px;height:auto"></a></td></tr>'
         . '<tr><td align="center" style="padding:8px 28px 18px;font-family:' . $c['font'] . ';font-size:22px;font-weight:bold;letter-spacing:6px;color:' . $c['text'] . '">THE THING'
         . '<div style="font-size:11px;letter-spacing:4px;color:' . $c['muted'] . ';font-weight:normal;margin-top:4px">GAME STUDIO</div></td></tr>'
         . '<tr><td style="padding:0 28px"><div style="border-top:2px solid ' . $c['red'] . ';border-bottom:2px solid ' . $c['red'] . ';height:2px;line-height:2px;font-size:0">&nbsp;</div></td></tr>'

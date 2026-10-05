@@ -177,7 +177,7 @@
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#050506"><tr><td align="center" style="padding:28px 12px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;border:6px double #ff3355;background:#111113;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(0,0,0,.25) 3px,transparent 4px)">
       <tr><td style="padding:22px 28px 6px;font-family:${f};font-size:12px;color:#ff3355;letter-spacing:2px">● REC<span style="float:right;color:#8f8b80">CH-01 · ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}</span></td></tr>
-      <tr><td align="center" style="padding:10px 28px 0"><img src="assets/img/logo-email.png" width="120" alt="THE THING" style="display:block;width:120px"></td></tr>
+      <tr><td align="center" style="padding:10px 28px 0"><img src="assets/img/logo-email.png" width="180" alt="THE THING" style="display:block;width:180px;height:auto"></td></tr>
       <tr><td align="center" style="padding:8px 28px 18px;font-family:${f};font-size:22px;font-weight:bold;letter-spacing:6px;color:#ebe6d8">THE THING<div style="font-size:11px;letter-spacing:4px;color:#8f8b80;font-weight:normal;margin-top:4px">GAME STUDIO</div></td></tr>
       <tr><td style="padding:0 28px"><div style="border-top:2px solid #ff3355;border-bottom:2px solid #ff3355;height:2px"></div></td></tr>
       <tr><td style="padding:26px 28px 30px;font-family:${f};font-size:15px;line-height:1.6;color:#ebe6d8">${inner}</td></tr>

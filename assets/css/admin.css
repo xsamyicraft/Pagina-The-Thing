@@ -18,7 +18,7 @@ body.admin { min-height: 100svh; }
   box-shadow: inset 0 0 0 2px var(--text); outline: 2px solid var(--line-acc); outline-offset: 5px;
   animation: crt-on .7s var(--ease-crt) both;
 }
-.login-card__logo { width: 110px; height: auto; margin: 0 auto 16px; }
+.login-card__logo { width: 170px; height: auto; margin: 0 auto 16px; }
 .login-card__title { font-size: 18px; margin: 0 0 24px; }
 .login-card__back { display: inline-block; margin-top: 20px; font-family: var(--term); font-size: 20px; color: var(--muted); text-decoration: none; }
 .login-card__back:hover { color: var(--text); }

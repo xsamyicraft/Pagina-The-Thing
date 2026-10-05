@@ -83,7 +83,7 @@
     const isReg = mode === 'register';
     if (captcha) captcha.destroy();
     box.innerHTML = `
-      <img class="auth__logo" src="assets/img/logo-small.webp" alt="" width="90" height="98">
+      <img class="auth__logo" src="assets/img/logo-small.webp" alt="" width="160" height="135">
       <h2>${isReg ? 'NUEVO JUGADOR' : 'CONTINUAR PARTIDA'}</h2>
       <p class="auth__sub">${esc(reason || (isReg ? 'Crea tu cuenta para votar, dejar reseñas y recibir avisos.' : 'Entra con tu correo y contraseña.'))}</p>
       <div class="tabs" role="tablist">
@@ -176,7 +176,7 @@
     const box = $('#authBox');
     if (captcha) captcha.destroy();
     box.innerHTML = `
-      <img class="auth__logo" src="assets/img/logo-small.webp" alt="" width="90" height="98">
+      <img class="auth__logo" src="assets/img/logo-small.webp" alt="" width="160" height="135">
       <h2>ACCESO STAFF</h2>
       <p class="auth__sub">${info.mailSent === false ? 'No pudimos enviar el correo: el PIN está en <b>data/ultimo-pin.php</b> del servidor.' : `Te enviamos un PIN de 6 dígitos a <b>${esc(info.sentTo || 'tu correo')}</b>. Caduca en ${info.minutes || 10} minutos.`}
         ${info.demoPin ? `<br><span style="color:var(--acc)">MODO DEMO · PIN: ${esc(info.demoPin)}</span>` : ''}</p>

@@ -27,7 +27,7 @@
   const statusClass = (p) => (soldOut(p) ? '' : soon(p) ? 'tag--status' : 'tag--live');
   const media = (p) => (p.image
     ? `<img src="${esc(p.image)}" alt="" loading="lazy">`
-    : '<div class="placeholder" aria-hidden="true"><img src="assets/img/logo-small.webp" alt=""></div>');
+    : '<div class="placeholder" aria-hidden="true"><img src="assets/img/logo-lineal.webp" alt=""></div>');
 
   function render() {
     const wrap = $('#shop');

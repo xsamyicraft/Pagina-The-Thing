@@ -70,7 +70,7 @@
     return `
     <nav class="nav container" aria-label="Principal">
       <a class="brand" href="index.html" data-transition aria-label="THE THING, ir al inicio">
-        <img src="assets/img/logo-small.webp" alt="" width="40" height="44">
+        <img src="assets/img/logo-mark.webp" alt="" width="44" height="44">
         <span>THE THING<small>GAME STUDIO</small></span>
       </a>
       <ul class="menu" id="menu">
@@ -186,7 +186,7 @@
     return `
     <div class="footer-top container">
       <div class="footer-brand">
-        <a href="index.html" data-transition class="footer-logo" aria-label="THE THING, ir al inicio"><img src="assets/img/logo-small.webp" alt="" width="64" height="70"><span>THE THING<small>GAME STUDIO</small></span></a>
+        <a href="index.html" data-transition class="footer-logo" aria-label="THE THING, ir al inicio"><img src="assets/img/logo-mark.webp" alt="" width="70" height="70"><span>THE THING<small>GAME STUDIO</small></span></a>
         <p class="footer-follow">SÍGUENOS</p>
         <div class="socials" id="footSocials" data-socials></div>
       </div>
@@ -324,7 +324,7 @@
     if (drop) {
       drop.innerHTML = '<p class="drop__title">DESTACADOS</p>' + (top.slice(0, 4).map((g) => `
         <a href="${itemUrl(g)}" data-transition class="drop__game">
-          <span class="drop__thumb">${g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy">` : '<img src="assets/img/logo-small.webp" alt="">'}</span>
+          <span class="drop__thumb">${g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy">` : '<img src="assets/img/logo-mark.webp" alt="">'}</span>
           <span>${esc(g.title)}${g.status ? `<small>${esc(g.status)}</small>` : ''}</span>
         </a>`).join('') || '<span class="drop__empty">PRÓXIMAMENTE</span>');
     }
@@ -444,7 +444,15 @@
           span.textContent = a[0];
           frag.appendChild(span);
         });
-        node.parentNode.replaceChild(frag, node);
+        // En botones (flex) cada trozo sería un elemento aparte con hueco: se agrupan
+        const parent = node.parentNode;
+        if (/flex/.test(getComputedStyle(parent).display)) {
+          const wrap = document.createElement('span');
+          wrap.appendChild(frag);
+          parent.replaceChild(wrap, node);
+        } else {
+          parent.replaceChild(frag, node);
+        }
       });
     });
   }

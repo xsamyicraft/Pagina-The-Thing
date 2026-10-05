@@ -251,7 +251,7 @@
   const ratingOf = (id) => community.ratings[id] || null;
   const media = (item, cls = '') => (item.image
     ? `<img src="${esc(item.image)}" alt="" loading="lazy" class="${cls}">`
-    : '<div class="placeholder" aria-hidden="true"><img src="assets/img/logo-small.webp" alt=""></div>');
+    : '<div class="placeholder" aria-hidden="true"><img src="assets/img/logo-lineal.webp" alt=""></div>');
 
   const isLive = (status) => /disponible|lanzado|ya|live|jugar/i.test(status || '');
   const statusClass = (status) => (isLive(status) ? 'tag--live' : 'tag--status');
@@ -787,7 +787,7 @@
   function slideHtml(c, i, n) {
     const art = c.img
       ? `<img src="${esc(c.img)}" alt="" loading="${i < 2 ? 'eager' : 'lazy'}">`
-      : `<span class="hslide__empty" aria-hidden="true"><img src="assets/img/logo-small.webp" alt=""><b>${c.vhs ? 'VHS' : 'THE THING'}</b></span>`;
+      : `<span class="hslide__empty" aria-hidden="true"><img src="assets/img/logo-lineal.webp" alt=""><b>${c.vhs ? 'VHS' : 'THE THING'}</b></span>`;
     return `
       <article class="hslide${c.vhs ? ' hslide--vhs' : ''}" data-slide="${i}" role="group" aria-roledescription="diapositiva" aria-label="${i + 1} de ${n}: ${esc(c.title)}" aria-hidden="true" inert>
         <div class="hslide__text">
@@ -813,7 +813,7 @@
     wrap.insertAdjacentHTML('beforeend', channels.map((c, k) => slideHtml(c, k + 1, n)).join(''));
     const intro = wrap.querySelector('.hslide--intro');
     intro.setAttribute('aria-label', `1 de ${n}: Bienvenido a THE THING`);
-    heroState.slides = [{ title: 'THE THING', kind: 'BIENVENIDO', img: '', thumb: 'assets/img/logo-small.webp' }, ...channels];
+    heroState.slides = [{ title: 'THE THING', kind: 'BIENVENIDO', img: '', thumb: 'assets/img/logo-mark.webp' }, ...channels];
     const rail = $('#heroRail');
     rail.innerHTML = heroState.slides.map((c, i) => `
       <button type="button" class="hrail" role="tab" data-go="${i}" aria-selected="${i === heroState.i}" aria-label="Canal ${i + 1}: ${esc(c.title)}">
